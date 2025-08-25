@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="text-center mb-16 animate-fade-in">
+    <div class="inline-block animate-float mb-6">
+        <div class="w-20 h-20 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-3xl text-white shadow-2xl">
+            📝
+        </div>
+    </div>
+    <h1 class="text-5xl font-bold bg-gradient-to-r from-gray-900 via-indigo-900 to-purple-900 bg-clip-text text-transparent mb-6 leading-tight">
+        Welcome to ModernBlog
+    </h1>
+    <p class="text-xl text-gray-600 max-w-2xl mx-auto leading-relaxed">
+        Share your thoughts with the world using 
+        <span class="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent font-semibold">Markdown</span>
+    </p>
+</div>
+
+{% if blogs %}
+    <div class="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+        {% for blog in blogs %}
+            <article class="group bg-gradient-to-br from-white via-white to-indigo-50/30 backdrop-blur-sm rounded-3xl shadow-xl hover:shadow-2xl transition-all duration-500 border border-indigo-100/50 overflow-hidden hover:scale-[1.02] hover:-translate-y-2 animate-fade-in" style="animation-delay: {{ loop.index0 * 0.1 }}s">
+                <div class="p-8 relative">
+                    <!-- Decorative gradient overlay -->
+                    <div class="absolute top-0 right-0 w-20 h-20 bg-gradient-to-br from-indigo-500/10 to-purple-500/10 rounded-bl-3xl"></div>
+                    <!-- Author, Date, Time at top -->
+                    <div class="flex items-center justify-between mb-6 pb-4 border-b border-gradient-to-r from-indigo-100 to-purple-100">
+                        <div class="flex flex-col space-y-2">
+                            {% if blog.author %}
+                            <div class="flex items-center text-sm font-semibold text-gray-700">
+                                <div class="w-6 h-6 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white text-xs mr-2">
+                                    👤
+                                </div>
+                                <span>{{ blog.author }}</span>
+                            </div>
+                            {% endif %}
+                            <div class="flex items-center space-x-4 text-xs text-gray-500">
+                                <div class="flex items-center">
+                                    <span class="mr-1">📅</span>
+                                    <span>{{ blog.created_at[:10] }}</span>
+                                </div>
+                                <div class="flex items-center">
+                                    <span class="mr-1">🕰️</span>
+                                    <span>{{ blog.created_at[11:16] }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="w-12 h-12 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 rounded-2xl flex items-center justify-center text-white text-lg shadow-xl group-hover:rotate-12 transition-transform duration-300">
+                            📝
+                        </div>
+                    </div>
+                    <h2 class="text-xl font-bold bg-gradient-to-r from-gray-900 to-indigo-900 bg-clip-text text-transparent mb-4 line-clamp-2 group-hover:from-indigo-600 group-hover:to-purple-600 transition-all duration-300">
+                        <a href="{{ url_for('view_blog', blog_id=blog.id) }}" class="hover:underline decoration-2 decoration-indigo-300">
+                            {{ blog.title }}
+                        </a>
+                    </h2>
+                    <div class="text-gray-600 mb-6 line-clamp-3 leading-relaxed text-sm">
+                        {{ blog.content[:150] }}{% if blog.content|length > 150 %}<span class="text-indigo-500 font-medium">... read more</span>{% endif %}
+                    </div>
+                    
+                    <!-- Stats and Tags -->
+                    <div class="space-y-3 mb-6">
+                        {% if blog.word_count %}
+                        <div class="flex items-center space-x-4 text-xs">
+                            <div class="flex items-center px-3 py-1 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-full text-blue-600">
+                                <span class="mr-1">📊</span>
+                                <span class="font-medium">{{ blog.word_count }} words</span>
+                            </div>
+                            <div class="flex items-center px-3 py-1 bg-gradient-to-r from-green-50 to-emerald-50 rounded-full text-green-600">
+                                <span class="mr-1">⏱️</span>
+                                <span class="font-medium">{{ blog.reading_time }} min read</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                        {% if blog.tags %}
+                        <div class="flex flex-wrap gap-2">
+                            {% for tag in blog.tags[:3] %}
+                            <span class="px-3 py-1 bg-gradient-to-r from-indigo-100 to-purple-100 text-indigo-700 text-xs rounded-full font-medium hover:from-indigo-200 hover:to-purple-200 transition-colors">
+                                #{{ tag }}
+                            </span>
+                            {% endfor %}
+                            {% if blog.tags|length > 3 %}
+                            <span class="px-3 py-1 bg-gray-100 text-gray-500 text-xs rounded-full font-medium">+{{ blog.tags|length - 3 }} more</span>
+                            {% endif %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="flex items-center justify-between pt-4 border-t border-gray-100">
+                        <a href="{{ url_for('view_blog', blog_id=blog.id) }}" 
+                           class="inline-flex items-center px-4 py-2 bg-gradient-to-r from-indigo-500 to-purple-600 text-white rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-200 font-medium text-sm">
+                            <span class="mr-2">📚</span>
+                            Read Article
+                        </a>
+                        <div class="flex space-x-2">
+                            {% if session.user and session.user == blog.author %}
+                            <a href="{{ url_for('edit_blog', blog_id=blog.id) }}" 
+                               class="p-2 text-blue-500 hover:bg-blue-50 rounded-xl transition-all duration-200 hover:scale-110" 
+                               title="Edit Post">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                                </svg>
+                            </a>
+                            <button onclick="deletePostFromCard('{{ blog.id }}', '{{ blog.title }}')" 
+                                    class="p-2 text-red-500 hover:bg-red-50 rounded-xl transition-all duration-200 hover:scale-110" 
+                                    title="Delete Post">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                </svg>
+                            </button>
+                            {% endif %}
+                            <button onclick="sharePostFromCard('{{ blog.id }}', '{{ blog.title }}')" 
+                                    class="p-2 text-green-500 hover:bg-green-50 rounded-xl transition-all duration-200 hover:scale-110" 
+                                    title="Share Post">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.367 2.684 3 3 0 00-5.367-2.684z"></path>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </article>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="text-center py-20 animate-fade-in">
+        <div class="inline-block p-8 bg-gradient-to-br from-indigo-50 to-purple-50 rounded-3xl mb-8 animate-float">
+            <div class="w-16 h-16 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center text-2xl text-white shadow-xl mx-auto">
+                📝
+            </div>
+        </div>
+        <h3 class="text-2xl font-bold text-gray-900 mb-4">No blog posts yet</h3>
+        <p class="text-gray-600 mb-8 text-lg max-w-md mx-auto leading-relaxed">
+            Get started by creating your first amazing blog post!
+        </p>
+        <a href="{{ url_for('add_blog') }}" class="inline-flex items-center bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-8 py-4 rounded-2xl hover:shadow-2xl hover:scale-105 transition-all duration-300 font-semibold text-lg">
+            <span class="mr-2">✍️</span>
+            Write Your First Post
+        </a>
+    </div>
+{% endif %}
+
+<script>
+    function sharePostFromCard(blogId, title) {
+        fetch(`/share/${blogId}`)
+            .then(response => response.json())
+            .then(data => {
+                if (navigator.share) {
+                    navigator.share({
+                        title: data.title,
+                        text: data.text,
+                        url: data.url
+                    });
+                } else {
+                    navigator.clipboard.writeText(data.url).then(() => {
+                        showNotification('Link copied to clipboard!', 'success');
+                    });
+                }
+            });
+    }
+
+    function deletePostFromCard(blogId, title) {
+        if (confirm(`Are you sure you want to delete "${title}"? This action cannot be undone.`)) {
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = `/delete/${blogId}`;
+            document.body.appendChild(form);
+            form.submit();
+        }
+    }
+
+    function showNotification(message, type) {
+        const notification = document.createElement('div');
+        notification.className = `fixed top-4 right-4 p-4 rounded-xl shadow-lg z-50 animate-slide-up ${
+            type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+        }`;
+        notification.textContent = message;
+        document.body.appendChild(notification);
+        
+        setTimeout(() => {
+            notification.remove();
+        }, 3000);
+    }
+</script>
+{% endblock %}
