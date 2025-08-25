@@ -61,7 +61,15 @@
                         <a href="{{ url_for('add_blog') }}" class="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-6 py-2.5 rounded-full hover:shadow-lg hover:scale-105 transition-all duration-200 font-medium">
                             ✍️ Write Post
                         </a>
-                        <span class="text-gray-600">👤 {{ session.user }}</span>
+                        <a href="{{ url_for('profile') }}" class="flex items-center space-x-2 text-gray-600 hover:text-indigo-600 transition-colors">
+                            {% set user_info = get_user_info(session.user) %}
+                            {% if user_info.profile_image %}
+                                <img src="{{ url_for('static', filename=user_info.profile_image) }}" alt="{{ session.user }}" class="w-6 h-6 rounded-full object-cover border border-gray-300">
+                            {% else %}
+                                <span class="text-lg">👤</span>
+                            {% endif %}
+                            <span>{{ session.user }}</span>
+                        </a>
                         <a href="{{ url_for('logout') }}" class="text-gray-700 hover:text-red-600 transition-all duration-200 font-medium">🚪 Logout</a>
                     {% else %}
                         <a href="{{ url_for('login') }}" class="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-6 py-2.5 rounded-full hover:shadow-lg hover:scale-105 transition-all duration-200 font-medium">

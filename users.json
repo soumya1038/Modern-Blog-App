@@ -1,4 +1,43 @@
 {
-  "soumya": "password",
-  "Anonymous": "password"
+  "soumya": {
+    "password": "password",
+    "personal_info": {
+      "name": "",
+      "signature": "",
+      "address": "",
+      "phone": "",
+      "dob": "",
+      "email": "",
+      "bio": "",
+      "profile_image": "uploads/6f5b59dd4a07484ebf611bb2af6d2b9b_IMG_20231108_133117992_PORTRAIT.jpg",
+      "facebook": "",
+      "twitter": "",
+      "instagram": "",
+      "youtube": "",
+      "github": ""
+    }
+  },
+  "Anonymous": {
+    "password": "password",
+    "personal_info": {}
+  },
+  "ABC": {
+    "password": "password",
+    "personal_info": {
+      "profile_image": "uploads/9a19fdc11ab54f4faa30e129b517e2e6_Project_Logo_Forever.png",
+      "name": "",
+      "signature": "",
+      "address": "",
+      "phone": "",
+      "dob": "",
+      "email": "",
+      "bio": "",
+      "facebook": "",
+      "twitter": "",
+      "instagram": "",
+      "youtube": "",
+      "github": "",
+      "linkedin": ""
+    }
+  }
 }

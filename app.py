@@ -4,6 +4,8 @@ import os
 import json
 from datetime import datetime
 import urllib.parse
+import gzip
+import base64
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here')
@@ -13,13 +15,23 @@ BLOG_DIR = 'blogs'
 if not os.path.exists(BLOG_DIR):
     os.makedirs(BLOG_DIR)
 
+def compress_data(data):
+    json_str = json.dumps(data)
+    compressed = gzip.compress(json_str.encode('utf-8'))
+    return base64.b64encode(compressed).decode('utf-8')
+
+def decompress_data(encoded_data):
+    compressed = base64.b64decode(encoded_data)
+    json_str = gzip.decompress(compressed).decode('utf-8')
+    return json.loads(json_str)
+
 def get_all_blogs():
     blogs = []
     if os.path.exists(BLOG_DIR):
         for filename in os.listdir(BLOG_DIR):
-            if filename.endswith('.json'):
-                with open(os.path.join(BLOG_DIR, filename), 'r', encoding='utf-8') as f:
-                    blog = json.load(f)
+            if filename.endswith('.gz'):
+                with open(os.path.join(BLOG_DIR, filename), 'r') as f:
+                    blog = decompress_data(f.read())
                     blogs.append(blog)
     return sorted(blogs, key=lambda x: x['created_at'], reverse=True)
 
@@ -29,7 +41,15 @@ USERS_FILE = 'users.json'
 def load_users():
     if os.path.exists(USERS_FILE):
         with open(USERS_FILE, 'r') as f:
-            return json.load(f)
+            users = json.load(f)
+            # Migrate old user format to new format with personal info
+            for username, data in users.items():
+                if isinstance(data, str):  # Old format: username -> password
+                    users[username] = {
+                        'password': data,
+                        'personal_info': {}
+                    }
+            return users
     return {}
 
 def save_users(users):
@@ -51,7 +71,10 @@ def register():
             if username in users:
                 flash('Username already exists', 'error')
             else:
-                users[username] = password
+                users[username] = {
+                    'password': password,
+                    'personal_info': {}
+                }
                 save_users(users)
                 session['user'] = username
                 flash('Account created successfully!', 'success')
@@ -65,7 +88,9 @@ def login():
         password = request.form['password']
         
         users = load_users()
-        if username in users and users[username] == password:
+        user_data = users.get(username)
+        user_password = user_data['password'] if isinstance(user_data, dict) else user_data
+        if username in users and user_password == password:
             session['user'] = username
             flash('Logged in successfully!', 'success')
             return redirect(url_for('index'))
@@ -73,23 +98,143 @@ def login():
             flash('Invalid username or password', 'error')
     return render_template('login.html')
 
+@app.route('/profile', methods=['GET', 'POST'])
+def profile():
+    if 'user' not in session:
+        flash('Please log in to view profile', 'error')
+        return redirect(url_for('login'))
+    
+    users = load_users()
+    user_blogs = [blog for blog in get_all_blogs() if blog.get('author') == session['user']]
+    user_data = users[session['user']]
+    user_password = user_data['password'] if isinstance(user_data, dict) else user_data
+    personal_info = user_data.get('personal_info', {}) if isinstance(user_data, dict) else {}
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        if action == 'update_profile_image':
+            if isinstance(user_data, str):
+                users[session['user']] = {'password': user_data, 'personal_info': {}}
+            
+            if 'profile_image' in request.files:
+                file = request.files['profile_image']
+                if file and file.filename:
+                    import uuid
+                    filename = f"{uuid.uuid4().hex}_{file.filename}"
+                    upload_dir = 'static/uploads'
+                    if not os.path.exists(upload_dir):
+                        os.makedirs(upload_dir)
+                    file.save(os.path.join(upload_dir, filename))
+                    users[session['user']]['personal_info']['profile_image'] = f'uploads/{filename}'
+                    save_users(users)
+                    flash('Profile picture updated successfully!', 'success')
+        
+        elif action == 'clear_profile_image':
+            if isinstance(user_data, str):
+                users[session['user']] = {'password': user_data, 'personal_info': {}}
+            
+            # Remove profile image file if it exists
+            if 'profile_image' in users[session['user']]['personal_info']:
+                old_image = users[session['user']]['personal_info']['profile_image']
+                if old_image:
+                    image_path = os.path.join('static', old_image)
+                    if os.path.exists(image_path):
+                        os.remove(image_path)
+                users[session['user']]['personal_info']['profile_image'] = ''
+                save_users(users)
+                flash('Profile picture removed successfully!', 'success')
+        
+        elif action == 'update_personal_info':
+            if isinstance(user_data, str):
+                users[session['user']] = {'password': user_data, 'personal_info': {}}
+            
+            users[session['user']]['personal_info'].update({
+                'name': request.form.get('name', ''),
+                'signature': request.form.get('signature', ''),
+                'address': request.form.get('address', ''),
+                'phone': request.form.get('phone', ''),
+                'dob': request.form.get('dob', ''),
+                'email': request.form.get('email', ''),
+                'bio': request.form.get('bio', ''),
+                'facebook': request.form.get('facebook', ''),
+                'twitter': request.form.get('twitter', ''),
+                'instagram': request.form.get('instagram', ''),
+                'youtube': request.form.get('youtube', ''),
+                'github': request.form.get('github', ''),
+                'linkedin': request.form.get('linkedin', '')
+            })
+            save_users(users)
+            flash('Personal information updated successfully!', 'success')
+        
+        elif action == 'change_password':
+            current_password = request.form['current_password']
+            new_password = request.form['new_password']
+            
+            if user_password != current_password:
+                flash('Current password is incorrect', 'error')
+            elif len(new_password) < 6:
+                flash('New password must be at least 6 characters', 'error')
+            else:
+                if isinstance(user_data, str):
+                    users[session['user']] = {'password': new_password, 'personal_info': {}}
+                else:
+                    users[session['user']]['password'] = new_password
+                save_users(users)
+                flash('Password changed successfully!', 'success')
+        
+        elif action == 'delete_account':
+            password = request.form['password']
+            if user_password != password:
+                flash('Password is incorrect', 'error')
+            else:
+                # Delete user account
+                del users[session['user']]
+                save_users(users)
+                
+                # Delete all user's blog posts
+                for blog in user_blogs:
+                    blog_file = os.path.join(BLOG_DIR, f"{blog['id']}.gz")
+                    if os.path.exists(blog_file):
+                        os.remove(blog_file)
+                
+                session.pop('user', None)
+                flash('Account deleted successfully', 'success')
+                return redirect(url_for('index'))
+    
+    return render_template('profile.html', user_blogs=user_blogs, personal_info=personal_info)
+
 @app.route('/logout')
 def logout():
     session.pop('user', None)
     flash('Logged out successfully!', 'success')
     return redirect(url_for('index'))
 
+def get_user_info(username):
+    users = load_users()
+    user_data = users.get(username, {})
+    if isinstance(user_data, dict):
+        return user_data.get('personal_info', {})
+    return {}
+
+@app.context_processor
+def inject_user_info():
+    return dict(get_user_info=get_user_info)
+
 @app.route('/')
 def index():
     blogs = get_all_blogs()
+    # Add user info to each blog
+    for blog in blogs:
+        blog['author_info'] = get_user_info(blog.get('author', ''))
     return render_template('index.html', blogs=blogs)
 
 @app.route('/blog/<blog_id>')
 def view_blog(blog_id):
-    blog_file = os.path.join(BLOG_DIR, f'{blog_id}.json')
+    blog_file = os.path.join(BLOG_DIR, f'{blog_id}.gz')
     if os.path.exists(blog_file):
-        with open(blog_file, 'r', encoding='utf-8') as f:
-            blog = json.load(f)
+        with open(blog_file, 'r') as f:
+            blog = decompress_data(f.read())
         blog['content_html'] = markdown.markdown(blog['content'])
         return render_template('blog.html', blog=blog)
     return "Blog not found", 404
@@ -118,9 +263,9 @@ def add_blog():
                 'created_at': datetime.now().isoformat()
             }
             
-            blog_file = os.path.join(BLOG_DIR, f'{blog_id}.json')
-            with open(blog_file, 'w', encoding='utf-8') as f:
-                json.dump(blog_data, f, indent=2)
+            blog_file = os.path.join(BLOG_DIR, f'{blog_id}.gz')
+            with open(blog_file, 'w') as f:
+                f.write(compress_data(blog_data))
             
             flash('Blog post created successfully!', 'success')
             return redirect(url_for('view_blog', blog_id=blog_id))
