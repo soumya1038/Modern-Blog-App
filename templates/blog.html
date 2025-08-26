@@ -56,12 +56,36 @@
         {{ blog.content_html | safe }}
     </div>
 
+    <!-- Action Buttons -->
     <div class="mt-12 flex flex-wrap gap-4 justify-center">
+        <button onclick="likePost()" id="likeBtn"
+                class="inline-flex items-center bg-gradient-to-r from-pink-500 to-red-600 text-white px-6 py-3 rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-200 font-medium">
+            <span class="mr-2">❤️</span>
+            <span id="likeText">{{ 'Liked' if blog.user_liked else 'Like' }}</span>
+            <span id="likeCount" class="ml-2 bg-white/20 px-2 py-1 rounded-full text-sm">{{ blog.likes or 0 }}</span>
+        </button>
+        <button onclick="toggleComments()" 
+                class="inline-flex items-center bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-200 font-medium">
+            <span class="mr-2">💬</span>
+            Comments
+        </button>
+        <button onclick="sharePost()" 
+                class="inline-flex items-center bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-200 font-medium">
+            <span class="mr-2">🔗</span>
+            Share
+        </button>
+        {% if session.user and session.user != blog.author %}
+        <button onclick="followUser('{{ blog.author }}')" 
+                class="inline-flex items-center bg-gradient-to-r from-purple-500 to-violet-600 text-white px-6 py-3 rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-200 font-medium">
+            <span class="mr-2">👤</span>
+            Follow
+        </button>
+        {% endif %}
         {% if session.user and session.user == blog.author %}
         <a href="{{ url_for('edit_blog', blog_id=blog.id) }}" 
-           class="inline-flex items-center bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-6 py-3 rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-200 font-medium">
+           class="inline-flex items-center bg-gradient-to-r from-yellow-500 to-orange-600 text-white px-6 py-3 rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-200 font-medium">
             <span class="mr-2">✏️</span>
-            Edit Post
+            Edit
         </a>
         <button onclick="deletePost()" 
                 class="inline-flex items-center bg-gradient-to-r from-red-500 to-pink-600 text-white px-6 py-3 rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-200 font-medium">
@@ -69,11 +93,72 @@
             Delete
         </button>
         {% endif %}
-        <button onclick="sharePost()" 
-                class="inline-flex items-center bg-gradient-to-r from-green-500 to-emerald-600 text-white px-6 py-3 rounded-xl hover:shadow-lg hover:scale-105 transition-all duration-200 font-medium">
-            <span class="mr-2">🔗</span>
-            Share
-        </button>
+    </div>
+
+    <!-- Author Social Media Links -->
+    {% set author_info = get_user_info(blog.author) %}
+    {% set social_links = [] %}
+    {% if author_info.facebook %}{% set _ = social_links.append('facebook') %}{% endif %}
+    {% if author_info.twitter %}{% set _ = social_links.append('twitter') %}{% endif %}
+    {% if author_info.instagram %}{% set _ = social_links.append('instagram') %}{% endif %}
+    {% if author_info.youtube %}{% set _ = social_links.append('youtube') %}{% endif %}
+    {% if author_info.github %}{% set _ = social_links.append('github') %}{% endif %}
+    {% if author_info.linkedin %}{% set _ = social_links.append('linkedin') %}{% endif %}
+    
+    {% if social_links %}
+    <div class="mt-8 text-center">
+        <h3 class="text-lg font-semibold text-gray-700 mb-4">Connect with {{ author_info.name or blog.author }}</h3>
+        <div class="flex items-center justify-center space-x-3">
+            {% if author_info.facebook %}
+            <a href="{{ author_info.facebook }}" target="_blank" class="p-3 text-blue-600 hover:bg-blue-50 rounded-full transition-all duration-200 hover:scale-110" title="Facebook">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+            </a>
+            {% endif %}
+            {% if author_info.twitter %}
+            <a href="{{ author_info.twitter }}" target="_blank" class="p-3 text-black hover:bg-gray-50 rounded-full transition-all duration-200 hover:scale-110" title="X (Twitter)">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+            </a>
+            {% endif %}
+            {% if author_info.instagram %}
+            <a href="{{ author_info.instagram }}" target="_blank" class="p-3 text-pink-500 hover:bg-pink-50 rounded-full transition-all duration-200 hover:scale-110" title="Instagram">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M7.0301.084c-1.2768.0602-2.1487.264-2.911.5634-.7888.3075-1.4575.72-2.1228 1.3877-.6652.6677-1.075 1.3368-1.3802 2.127-.2954.7638-.4956 1.6365-.552 2.914-.0564 1.2775-.0689 1.6882-.0626 4.947.0062 3.2586.0206 3.6671.0825 4.9473.061 1.2765.264 2.1482.5635 2.9107.308.7889.72 1.4573 1.388 2.1228.6679.6655 1.3365 1.0743 2.1285 1.38.7632.295 1.6361.4961 2.9134.552 1.2773.056 1.6884.069 4.9462.0627 3.2578-.0062 3.668-.0207 4.9478-.0814 1.28-.0607 2.147-.2652 2.9098-.5633.7889-.3086 1.4578-.72 2.1228-1.3881.665-.6682 1.0745-1.3378 1.3795-2.1284.2957-.7632.4966-1.636.552-2.9124.056-1.2809.0692-1.6898.063-4.948-.0063-3.2583-.021-3.6668-.0817-4.9465-.0607-1.2797-.264-2.1487-.5633-2.9117-.3084-.7889-.72-1.4568-1.3876-2.1228C21.2982 1.33 20.628.9208 19.8378.6165 19.074.321 18.2017.1197 16.9244.0645 15.6471.0093 15.236-.005 11.977.0014 8.718.0076 8.31.0215 7.0301.0839m.1402 21.6932c-1.17-.0509-1.8053-.2453-2.2287-.408-.5606-.216-.96-.4771-1.3819-.895-.422-.4178-.6811-.8186-.9-1.378-.1644-.4234-.3624-1.058-.4171-2.228-.0595-1.2645-.072-1.6442-.079-4.848-.007-3.2037.0053-3.583.0607-4.848.05-1.169.2456-1.805.408-2.2282.216-.5613.4762-.96.895-1.3816.4188-.4217.8184-.6814 1.3783-.9003.423-.1651 1.0575-.3614 2.227-.4171 1.2655-.06 1.6447-.072 4.848-.079 3.2033-.007 3.5835.005 4.8495.0608 1.169.0508 1.8053.2445 2.228.408.5608.216.96.4754 1.3816.895.4217.4194.6816.8176.9005 1.3787.1653.4217.3617 1.056.4169 2.2263.0602 1.2655.0739 1.645.0796 4.848.0058 3.203-.0055 3.5834-.061 4.848-.051 1.17-.245 1.8055-.408 2.2294-.216.5604-.4763.96-.8954 1.3814-.419.4215-.8181.6811-1.3783.9-.4224.1649-1.0577.3617-2.2262.4174-1.2656.0595-1.6448.072-4.8493.079-3.2045.007-3.5825-.006-4.848-.0608M16.953 5.5864A1.44 1.44 0 1 0 18.39 4.144a1.44 1.44 0 0 0-1.437 1.4424M5.8385 12.012c.0067 3.4032 2.7706 6.1557 6.173 6.1493 3.4026-.0065 6.157-2.7701 6.1506-6.1733-.0065-3.4032-2.771-6.1565-6.174-6.1498-3.403.0067-6.156 2.771-6.1496 6.1738M8 12.0077a4 4 0 1 1 4.008 3.9921A3.9996 3.9996 0 0 1 8 12.0077"/></svg>
+            </a>
+            {% endif %}
+            {% if author_info.youtube %}
+            <a href="{{ author_info.youtube }}" target="_blank" class="p-3 text-red-500 hover:bg-red-50 rounded-full transition-all duration-200 hover:scale-110" title="YouTube">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+            </a>
+            {% endif %}
+            {% if author_info.github %}
+            <a href="{{ author_info.github }}" target="_blank" class="p-3 text-gray-800 hover:bg-gray-50 rounded-full transition-all duration-200 hover:scale-110" title="GitHub">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+            </a>
+            {% endif %}
+            {% if author_info.linkedin %}
+            <a href="{{ author_info.linkedin }}" target="_blank" class="p-3 text-blue-700 hover:bg-blue-50 rounded-full transition-all duration-200 hover:scale-110" title="LinkedIn">
+                <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Comments Section -->
+    <div id="commentsSection" class="mt-12 hidden">
+        <div class="bg-white/50 backdrop-blur-sm rounded-3xl p-8 shadow-lg border border-white/20">
+            <h3 class="text-2xl font-bold text-gray-800 mb-6">Comments</h3>
+            {% if session.user %}
+            <div class="mb-6">
+                <textarea id="commentText" placeholder="Write your comment..." class="w-full p-4 border border-gray-300 rounded-xl resize-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent" rows="3"></textarea>
+                <button onclick="addComment()" class="mt-3 bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-6 py-2 rounded-xl hover:shadow-lg transition-all duration-200">Post Comment</button>
+            </div>
+            {% else %}
+            <p class="text-gray-600 mb-6">Please <a href="{{ url_for('login') }}" class="text-indigo-600 hover:underline">login</a> to leave a comment.</p>
+            {% endif %}
+            <div id="commentsList" class="space-y-4">
+                <!-- Comments will be loaded here -->
+            </div>
+        </div>
     </div>
 
     <footer class="mt-16 pt-8 border-t-2 border-gradient-to-r from-indigo-200 to-purple-200 text-center">
@@ -198,9 +283,7 @@
                         url: data.url
                     });
                 } else {
-                    navigator.clipboard.writeText(data.url).then(() => {
-                        showNotification('Link copied to clipboard!', 'success');
-                    });
+                    navigator.clipboard.writeText(data.url);
                 }
             });
     }
@@ -215,9 +298,87 @@
         }
     }
 
+    function likePost() {
+        fetch(`/like/{{ blog.id }}`, { method: 'POST' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    console.log(data.error);
+                } else {
+                    document.getElementById('likeCount').textContent = data.likes;
+                    document.getElementById('likeText').textContent = data.liked ? 'Liked' : 'Like';
+                }
+            })
+            .catch(error => {
+                console.log('Please login to like posts');
+            });
+    }
+
+    function toggleComments() {
+        const section = document.getElementById('commentsSection');
+        section.classList.toggle('hidden');
+        if (!section.classList.contains('hidden')) {
+            loadComments();
+        }
+    }
+
+    function addComment() {
+        const text = document.getElementById('commentText').value.trim();
+        if (!text) return;
+        
+        fetch(`/comment/{{ blog.id }}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ text: text })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('commentText').value = '';
+                loadComments();
+            }
+        })
+        .catch(error => {
+            console.log('Error adding comment');
+        });
+    }
+
+    function loadComments() {
+        fetch(`/comments/{{ blog.id }}`)
+            .then(response => response.json())
+            .then(data => {
+                const list = document.getElementById('commentsList');
+                list.innerHTML = data.comments.map(comment => `
+                    <div class="bg-gray-50 p-4 rounded-xl">
+                        <div class="flex items-center mb-2">
+                            <span class="font-semibold text-gray-800">${comment.author}</span>
+                            <span class="text-gray-500 text-sm ml-2">${comment.created_at}</span>
+                        </div>
+                        <p class="text-gray-700">${comment.text}</p>
+                    </div>
+                `).join('');
+            });
+    }
+
+    function followUser(username) {
+        fetch(`/follow/${username}`, { 
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            showNotification(data.message, data.success ? 'success' : 'error');
+        })
+        .catch(error => {
+            showNotification('Please login to follow users', 'error');
+        });
+    }
+
     function showNotification(message, type) {
         const notification = document.createElement('div');
-        notification.className = `fixed top-4 right-4 p-4 rounded-xl shadow-lg z-50 animate-slide-up ${
+        notification.className = `fixed top-4 right-4 p-4 rounded-lg shadow-lg z-50 ${
             type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
         }`;
         notification.textContent = message;
@@ -227,5 +388,6 @@
             notification.remove();
         }, 3000);
     }
+
 </script>
 {% endblock %}

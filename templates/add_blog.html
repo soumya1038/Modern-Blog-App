@@ -164,6 +164,16 @@ Start writing your masterpiece! ✨"></textarea>
                 <span class="mr-2">🚀</span>
                 Publish Post
             </button>
+            <button type="button" onclick="saveToLocal()" 
+                    class="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-8 py-4 rounded-2xl hover:shadow-2xl hover:scale-105 transition-all duration-300 font-semibold text-lg flex items-center">
+                <span class="mr-2">💾</span>
+                Save Locally
+            </button>
+            <button type="button" onclick="syncLocalBlogs()" 
+                    class="bg-gradient-to-r from-orange-500 to-red-600 text-white px-8 py-4 rounded-2xl hover:shadow-2xl hover:scale-105 transition-all duration-300 font-semibold text-lg flex items-center">
+                <span class="mr-2">🔄</span>
+                Sync Local
+            </button>
             <a href="{{ url_for('index') }}" 
                class="bg-white/70 backdrop-blur-sm text-gray-700 px-8 py-4 rounded-2xl hover:bg-gray-100 transition-all duration-200 font-semibold text-lg border-2 border-gray-200 hover:border-gray-300 flex items-center">
                 <span class="mr-2">←</span>
@@ -208,7 +218,7 @@ Start writing your masterpiece! ✨"></textarea>
         const data = {
             draft_id: draftId,
             title: titleInput.value,
-            author: authorInput.value,
+            author: '{{ session.user }}',
             content: contentTextarea.value,
             tags: tagsInput.value
         };
@@ -263,10 +273,7 @@ Start writing your masterpiece! ✨"></textarea>
         scheduleAutoSave();
     });
     
-    const authorInput = document.getElementById('author');
-    
     titleInput.addEventListener('input', scheduleAutoSave);
-    authorInput.addEventListener('input', scheduleAutoSave);
     tagsInput.addEventListener('input', scheduleAutoSave);
     
     // Initialize
@@ -291,6 +298,111 @@ Start writing your masterpiece! ✨"></textarea>
                     break;
             }
         }
+    });
+    
+    // Local storage functions
+    function saveToLocal() {
+        if (!titleInput.value.trim() || !contentTextarea.value.trim()) {
+            alert('Please fill in title and content');
+            return;
+        }
+        
+        const blogData = {
+            id: titleInput.value.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+            title: titleInput.value,
+            author: '{{ session.user }}',
+            content: contentTextarea.value,
+            tags: tagsInput.value.split(',').map(tag => tag.trim()).filter(tag => tag),
+            word_count: contentTextarea.value.trim().split(/\s+/).length,
+            reading_time: Math.max(1, Math.ceil(contentTextarea.value.trim().split(/\s+/).length / 200)),
+            created_at: new Date().toISOString(),
+            local_only: true
+        };
+        
+        let localBlogs = JSON.parse(localStorage.getItem('localBlogs') || '[]');
+        const existingIndex = localBlogs.findIndex(blog => blog.id === blogData.id);
+        
+        if (existingIndex >= 0) {
+            localBlogs[existingIndex] = blogData;
+        } else {
+            localBlogs.push(blogData);
+        }
+        
+        localStorage.setItem('localBlogs', JSON.stringify(localBlogs));
+        alert('Blog saved locally! You can sync it later when online.');
+        updateSyncButton();
+    }
+    
+    function syncLocalBlogs() {
+        const localBlogs = JSON.parse(localStorage.getItem('localBlogs') || '[]');
+        const userBlogs = localBlogs.filter(blog => blog.author === '{{ session.user }}');
+        
+        if (userBlogs.length === 0) {
+            alert('No local blogs to sync');
+            return;
+        }
+        
+        // Show local blogs for selection
+        const blogList = userBlogs.map((blog, index) => 
+            `${index + 1}. ${blog.title} (${blog.created_at.split('T')[0]})`
+        ).join('\n');
+        
+        const selection = prompt(`Select a blog to load into editor:\n\n${blogList}\n\nEnter number (1-${userBlogs.length}) or 'all' to sync all:`);
+        
+        if (!selection) return;
+        
+        if (selection.toLowerCase() === 'all') {
+            // Sync all blogs to server
+            fetch('/sync-blogs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ blogs: userBlogs })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(`Synced ${data.synced} blogs to server`);
+                    const remainingBlogs = localBlogs.filter(blog => blog.author !== '{{ session.user }}');
+                    localStorage.setItem('localBlogs', JSON.stringify(remainingBlogs));
+                    updateSyncButton();
+                } else {
+                    alert('Sync failed: ' + data.message);
+                }
+            })
+            .catch(error => {
+                alert('Sync failed: Network error');
+            });
+        } else {
+            // Load selected blog into editor
+            const blogIndex = parseInt(selection) - 1;
+            if (blogIndex >= 0 && blogIndex < userBlogs.length) {
+                const selectedBlog = userBlogs[blogIndex];
+                titleInput.value = selectedBlog.title;
+                contentTextarea.value = selectedBlog.content;
+                tagsInput.value = selectedBlog.tags.join(', ');
+                updatePreview();
+                updateStats();
+                alert('Blog loaded into editor!');
+            } else {
+                alert('Invalid selection');
+            }
+        }
+    }
+    
+    function updateSyncButton() {
+        const localBlogs = JSON.parse(localStorage.getItem('localBlogs') || '[]');
+        const userBlogs = localBlogs.filter(blog => blog.author === '{{ session.user }}');
+        const syncBtn = document.querySelector('button[onclick="syncLocalBlogs()"]');
+        if (userBlogs.length > 0) {
+            syncBtn.innerHTML = `<span class="mr-2">🔄</span>Sync Local (${userBlogs.length})`;
+        } else {
+            syncBtn.innerHTML = `<span class="mr-2">🔄</span>Sync Local`;
+        }
+    }
+    
+    // Load local blogs count on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        updateSyncButton();
     });
 </script>
 {% endblock %}

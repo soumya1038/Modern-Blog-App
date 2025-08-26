@@ -18,9 +18,13 @@
                         'sans': ['Inter', 'system-ui', 'sans-serif']
                     },
                     animation: {
-                        'fade-in': 'fadeIn 0.5s ease-in-out',
-                        'slide-up': 'slideUp 0.3s ease-out',
-                        'float': 'float 6s ease-in-out infinite'
+                        'fade-in': 'fadeIn 0.8s ease-out forwards',
+                        'slide-up': 'slideUp 0.6s ease-out forwards',
+                        'float': 'float 6s ease-in-out infinite',
+                        'pulse-slow': 'pulse 3s ease-in-out infinite',
+                        'bounce-slow': 'bounce 2s ease-in-out infinite',
+                        'spin-slow': 'spin 8s linear infinite',
+                        'gradient': 'gradient 8s ease infinite'
                     }
                 }
             }
@@ -28,21 +32,88 @@
     </script>
     <style>
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+            from { 
+                opacity: 0; 
+                transform: translateY(30px) scale(0.95); 
+            }
+            to { 
+                opacity: 1; 
+                transform: translateY(0) scale(1); 
+            }
         }
         @keyframes slideUp {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+            from { 
+                opacity: 0; 
+                transform: translateY(20px); 
+            }
+            to { 
+                opacity: 1; 
+                transform: translateY(0); 
+            }
         }
         @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
+            0%, 100% { 
+                transform: translateY(0px) rotate(0deg); 
+            }
+            33% { 
+                transform: translateY(-10px) rotate(1deg); 
+            }
+            66% { 
+                transform: translateY(-5px) rotate(-1deg); 
+            }
+        }
+        @keyframes gradient {
+            0%, 100% {
+                background-size: 200% 200%;
+                background-position: left center;
+            }
+            50% {
+                background-size: 200% 200%;
+                background-position: right center;
+            }
         }
         .glass {
             background: rgba(255, 255, 255, 0.25);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+        .line-clamp-2 {
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .line-clamp-3 {
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .animate-fade-in {
+            opacity: 0;
+            animation: fadeIn 0.8s ease-out forwards;
+        }
+        .animate-slide-up {
+            opacity: 0;
+            animation: slideUp 0.6s ease-out forwards;
+        }
+        /* Smooth scrolling */
+        html {
+            scroll-behavior: smooth;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(to bottom, #6366f1, #8b5cf6);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(to bottom, #4f46e5, #7c3aed);
         }
     </style>
 </head>
@@ -51,16 +122,27 @@
         <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex justify-between h-16">
                 <div class="flex items-center">
-                    <a href="{{ url_for('index') }}" class="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent hover:scale-105 transition-transform duration-200">
+                    <a href="{{ url_for('index') }}" class="text-xl sm:text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent hover:scale-105 transition-transform duration-200">
                         ✨ ModernBlog
                     </a>
                 </div>
-                <div class="flex items-center space-x-4">
+                
+                <!-- Desktop Navigation -->
+                <div class="hidden sm:flex items-center space-x-4">
                     <a href="{{ url_for('index') }}" class="text-gray-700 hover:text-indigo-600 transition-all duration-200 font-medium hover:scale-105">Home</a>
                     {% if session.user %}
                         <a href="{{ url_for('add_blog') }}" class="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-6 py-2.5 rounded-full hover:shadow-lg hover:scale-105 transition-all duration-200 font-medium">
                             ✍️ Write Post
                         </a>
+                        <!-- Notification Button -->
+                        <div class="relative">
+                            <button id="notificationBtn" onclick="toggleNotifications()" class="relative p-3 text-slate-600 hover:text-white hover:bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl transition-all duration-300 hover:scale-110 hover:shadow-lg group">
+                                <svg class="w-5 h-5 transition-transform duration-300 group-hover:rotate-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-3.5-3.5a50.002 50.002 0 00-2.5-2.5V8a6 6 0 10-12 0v2.5a50.002 50.002 0 00-2.5 2.5L3 17h5m4 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                                </svg>
+                                <span id="notificationDot" class="absolute -top-1 -right-1 w-3.5 h-3.5 bg-gradient-to-r from-red-500 to-pink-500 rounded-full hidden animate-bounce shadow-lg border-2 border-white"></span>
+                            </button>
+                        </div>
                         <a href="{{ url_for('profile') }}" class="flex items-center space-x-2 text-gray-600 hover:text-indigo-600 transition-colors">
                             {% set user_info = get_user_info(session.user) %}
                             {% if user_info.profile_image %}
@@ -70,9 +152,98 @@
                             {% endif %}
                             <span>{{ session.user }}</span>
                         </a>
-                        <a href="{{ url_for('logout') }}" class="text-gray-700 hover:text-red-600 transition-all duration-200 font-medium">🚪 Logout</a>
+                        <a href="{{ url_for('logout') }}" onclick="sessionStorage.setItem('manualLogout', 'true');" class="text-gray-700 hover:text-red-600 transition-all duration-200 font-medium">🚪 Logout</a>
                     {% else %}
                         <a href="{{ url_for('login') }}" class="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-6 py-2.5 rounded-full hover:shadow-lg hover:scale-105 transition-all duration-200 font-medium">
+                            🔐 Login
+                        </a>
+                    {% endif %}
+                </div>
+                
+                <!-- Mobile Icons -->
+                <div class="sm:hidden flex items-center space-x-2">
+                    {% if session.user %}
+                    <!-- Mobile Profile Image -->
+                    <a href="{{ url_for('profile') }}" class="flex items-center">
+                        {% set user_info = get_user_info(session.user) %}
+                        {% if user_info.profile_image %}
+                            <img src="{{ url_for('static', filename=user_info.profile_image) }}" alt="{{ session.user }}" class="w-8 h-8 rounded-full object-cover border-2 border-indigo-200 hover:border-indigo-400 transition-colors">
+                        {% else %}
+                            <div class="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-bold border-2 border-indigo-200 hover:border-indigo-400 transition-colors">{{ session.user[0].upper() }}</div>
+                        {% endif %}
+                    </a>
+                    <!-- Mobile Notification Button -->
+                    <div class="relative">
+                        <button id="mobileNotificationBtn" onclick="toggleNotifications()" class="relative p-2 text-slate-600 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-all duration-200">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-3.5-3.5a50.002 50.002 0 00-2.5-2.5V8a6 6 0 10-12 0v2.5a50.002 50.002 0 00-2.5 2.5L3 17h5m4 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
+                            </svg>
+                            <span id="mobileNotificationDot" class="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full hidden animate-pulse"></span>
+                        </button>
+                    </div>
+                    {% endif %}
+                    <!-- Mobile Menu Button -->
+                    <button id="mobile-menu-btn" class="p-2 text-gray-700 hover:text-indigo-600 focus:outline-none focus:text-indigo-600 transition-colors rounded-lg">
+                        <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Notification Dropdown Panel -->
+            <div id="notificationPanel" class="fixed top-16 right-2 md:absolute md:right-4 md:top-16 w-80 md:w-96 max-w-[calc(100vw-1rem)] bg-gradient-to-br from-white via-slate-50 to-indigo-50/30 backdrop-blur-xl rounded-3xl shadow-2xl border border-white/40 hidden z-50 overflow-hidden">
+                <div class="bg-gradient-to-r from-violet-500 to-purple-600 p-5 text-white">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-bold text-lg flex items-center">
+                            <span class="mr-2 text-xl">🔔</span>
+                            Notifications
+                        </h3>
+                        <div class="w-2 h-2 bg-white/30 rounded-full animate-pulse"></div>
+                    </div>
+                </div>
+                <div id="notificationList" class="max-h-80 overflow-y-auto scrollbar-thin scrollbar-thumb-violet-300 scrollbar-track-transparent">
+                    <div class="p-8 text-center text-slate-500">
+                        <div class="w-16 h-16 bg-gradient-to-br from-violet-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-3">
+                            <span class="text-2xl">🔔</span>
+                        </div>
+                        <p class="font-medium">No notifications yet</p>
+                        <p class="text-sm text-slate-400 mt-1">We'll notify you when something happens</p>
+                    </div>
+                </div>
+                <div id="notificationActions" class="p-4 bg-gradient-to-r from-slate-50 to-indigo-50/50 border-t border-white/60 flex gap-3 hidden">
+                    <button id="markAllReadBtn" onclick="markAllAsRead()" class="flex-1 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:shadow-lg hover:scale-105 transition-all duration-200 flex items-center justify-center hidden">
+                        <span class="mr-2">✓</span>
+                        Mark All Read
+                    </button>
+                    <button id="clearAllBtn" onclick="clearAllNotifications()" class="bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:shadow-lg hover:scale-105 transition-all duration-200 flex items-center justify-center" style="flex: 1">
+                        <span class="mr-2">🗑️</span>
+                        Clear All
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Mobile Navigation Menu -->
+            <div id="mobile-menu" class="sm:hidden hidden bg-white/95 backdrop-blur-lg rounded-2xl mt-2 shadow-xl border border-white/60">
+                <div class="px-4 py-4 space-y-3">
+                    <a href="{{ url_for('index') }}" class="block text-gray-700 hover:text-indigo-600 transition-colors font-medium py-2">🏠 Home</a>
+                    {% if session.user %}
+                        <a href="{{ url_for('add_blog') }}" class="block bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-4 py-3 rounded-xl font-medium text-center">
+                            ✍️ Write Post
+                        </a>
+
+                        <a href="{{ url_for('profile') }}" class="flex items-center space-x-3 text-gray-600 hover:text-indigo-600 transition-colors py-2">
+                            {% set user_info = get_user_info(session.user) %}
+                            {% if user_info.profile_image %}
+                                <img src="{{ url_for('static', filename=user_info.profile_image) }}" alt="{{ session.user }}" class="w-8 h-8 rounded-full object-cover border border-gray-300">
+                            {% else %}
+                                <span class="text-xl">👤</span>
+                            {% endif %}
+                            <span class="font-medium">{{ session.user }}</span>
+                        </a>
+                        <a href="{{ url_for('logout') }}" onclick="sessionStorage.setItem('manualLogout', 'true');" class="block text-red-600 hover:text-red-700 transition-colors font-medium py-2">🚪 Logout</a>
+                    {% else %}
+                        <a href="{{ url_for('login') }}" class="block bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-4 py-3 rounded-xl font-medium text-center">
                             🔐 Login
                         </a>
                     {% endif %}
@@ -81,7 +252,7 @@
         </div>
     </nav>
 
-    <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <main class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {% with messages = get_flashed_messages(with_categories=true) %}
             {% if messages %}
                 {% for category, message in messages %}
@@ -135,5 +306,197 @@
             </div>
         </div>
     </footer>
+    <script>
+        // Mobile menu toggle
+        document.addEventListener('DOMContentLoaded', function() {
+            const mobileMenuBtn = document.getElementById('mobile-menu-btn');
+            const mobileMenu = document.getElementById('mobile-menu');
+            
+            if (mobileMenuBtn && mobileMenu) {
+                mobileMenuBtn.addEventListener('click', function() {
+                    mobileMenu.classList.toggle('hidden');
+                });
+                
+                // Close menu when clicking outside
+                document.addEventListener('click', function(event) {
+                    if (!mobileMenuBtn.contains(event.target) && !mobileMenu.contains(event.target)) {
+                        mobileMenu.classList.add('hidden');
+                    }
+                });
+            }
+            
+            // Auto-login from localStorage (only if not manually logged out)
+            const savedCredentials = localStorage.getItem('blogAppCredentials');
+            const isLoggedIn = {{ 'true' if session.user else 'false' }};
+            const currentPath = window.location.pathname;
+            const manualLogout = sessionStorage.getItem('manualLogout');
+            
+            if (savedCredentials && !isLoggedIn && currentPath !== '/login' && !sessionStorage.getItem('autoLoginAttempted') && !manualLogout) {
+                sessionStorage.setItem('autoLoginAttempted', 'true');
+                try {
+                    const { username, password } = JSON.parse(savedCredentials);
+                    fetch('/auto-login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username, password })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            window.location.reload();
+                        } else {
+                            localStorage.removeItem('blogAppCredentials');
+                            sessionStorage.removeItem('autoLoginAttempted');
+                        }
+                    })
+                    .catch(() => {
+                        localStorage.removeItem('blogAppCredentials');
+                        sessionStorage.removeItem('autoLoginAttempted');
+                    });
+                } catch (e) {
+                    localStorage.removeItem('blogAppCredentials');
+                    sessionStorage.removeItem('autoLoginAttempted');
+                }
+            }
+            
+            // Clear flags when visiting login page (user wants to login again)
+            if (currentPath === '/login') {
+                sessionStorage.removeItem('autoLoginAttempted');
+                sessionStorage.removeItem('manualLogout');
+            }
+            
+            // Load notifications if user is logged in
+            if (isLoggedIn) {
+                loadNotifications();
+                setInterval(loadNotifications, 30000);
+            }
+        });
+        
+        function toggleNotifications() {
+            const panel = document.getElementById('notificationPanel');
+            panel.classList.toggle('hidden');
+            
+            if (!panel.classList.contains('hidden')) {
+                loadNotifications();
+                markNotificationsAsRead();
+            }
+        }
+        
+        function loadNotifications() {
+            fetch('/notifications')
+                .then(response => response.json())
+                .then(data => {
+                    const list = document.getElementById('notificationList');
+                    const dot = document.getElementById('notificationDot');
+                    const mobileDot = document.getElementById('mobileNotificationDot');
+                    
+                    if (list) {
+                        const actionsDiv = document.getElementById('notificationActions');
+                        const markAllBtn = document.getElementById('markAllReadBtn');
+                        
+                        if (data.notifications && data.notifications.length > 0) {
+                            list.innerHTML = data.notifications.map(notif => `
+                                <div class="p-4 border-b border-white/40 hover:bg-gradient-to-r hover:from-violet-50 hover:to-purple-50 transition-all duration-200 ${
+                                    notif.read ? '' : 'bg-gradient-to-r from-indigo-50 to-violet-50 border-l-4 border-l-violet-400'
+                                }">
+                                    <div class="flex items-start space-x-4">
+                                        <div class="w-10 h-10 bg-gradient-to-br from-violet-100 to-purple-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                                            <span class="text-lg">${getNotificationIcon(notif.type)}</span>
+                                        </div>
+                                        <div class="flex-1 min-w-0">
+                                            <p class="text-sm font-medium text-slate-800 leading-relaxed">${notif.message}</p>
+                                            <div class="flex items-center mt-2">
+                                                <span class="text-xs text-slate-500 bg-slate-100 px-2 py-1 rounded-full">${formatTime(notif.created_at)}</span>
+                                                ${!notif.read ? '<span class="ml-2 w-2 h-2 bg-violet-400 rounded-full animate-pulse"></span>' : ''}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('');
+                            
+                            const hasUnread = data.notifications.some(n => !n.read);
+                            if (dot) dot.classList.toggle('hidden', !hasUnread);
+                            if (mobileDot) mobileDot.classList.toggle('hidden', !hasUnread);
+                            if (actionsDiv) actionsDiv.classList.remove('hidden');
+                            if (markAllBtn) markAllBtn.classList.toggle('hidden', !hasUnread);
+                        } else {
+                            list.innerHTML = '<div class="p-8 text-center text-slate-500"><div class="w-16 h-16 bg-gradient-to-br from-violet-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-3"><span class="text-2xl">🔔</span></div><p class="font-medium">No notifications yet</p><p class="text-sm text-slate-400 mt-1">We\'ll notify you when something happens</p></div>';
+                            if (dot) dot.classList.add('hidden');
+                            if (mobileDot) mobileDot.classList.add('hidden');
+                            if (actionsDiv) actionsDiv.classList.add('hidden');
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.log('Error loading notifications:', error);
+                });
+        }
+        
+        function markNotificationsAsRead() {
+            fetch('/notifications/mark-read', { method: 'POST' })
+                .then(() => {
+                    const dot = document.getElementById('notificationDot');
+                    const mobileDot = document.getElementById('mobileNotificationDot');
+                    if (dot) dot.classList.add('hidden');
+                    if (mobileDot) mobileDot.classList.add('hidden');
+                })
+                .catch(() => {});
+        }
+        
+        function getNotificationIcon(type) {
+            const icons = {
+                'like': '❤️',
+                'comment': '💬',
+                'follow': '👤',
+                'mention': '📢'
+            };
+            return icons[type] || '🔔';
+        }
+        
+        function formatTime(timestamp) {
+            const date = new Date(timestamp);
+            const now = new Date();
+            const diff = now - date;
+            const minutes = Math.floor(diff / 60000);
+            const hours = Math.floor(diff / 3600000);
+            const days = Math.floor(diff / 86400000);
+            
+            if (minutes < 1) return 'Just now';
+            if (minutes < 60) return `${minutes}m ago`;
+            if (hours < 24) return `${hours}h ago`;
+            return `${days}d ago`;
+        }
+        
+        function markAllAsRead() {
+            fetch('/notifications/mark-all-read', { method: 'POST' })
+                .then(() => {
+                    loadNotifications();
+                })
+                .catch(() => {});
+        }
+        
+        function clearAllNotifications() {
+            if (confirm('Are you sure you want to clear all notifications?')) {
+                fetch('/notifications/clear-all', { method: 'POST' })
+                    .then(() => {
+                        loadNotifications();
+                    })
+                    .catch(() => {});
+            }
+        }
+        
+        // Close notification panel when clicking outside
+        document.addEventListener('click', function(event) {
+            const panel = document.getElementById('notificationPanel');
+            const btn = document.getElementById('notificationBtn');
+            const mobileBtn = document.getElementById('mobileNotificationBtn');
+            
+            if (panel && !panel.contains(event.target) && 
+                (!btn || !btn.contains(event.target)) && 
+                (!mobileBtn || !mobileBtn.contains(event.target))) {
+                panel.classList.add('hidden');
+            }
+        });
+    </script>
 </body>
 </html>
