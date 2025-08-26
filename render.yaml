@@ -9,3 +9,7 @@ services:
         generateValue: true
       - key: PYTHON_VERSION
         value: 3.9.16
+databases:
+  - name: modern-blog-db
+    databaseName: modern_blog
+    user: blog_user

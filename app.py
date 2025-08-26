@@ -227,19 +227,18 @@ def profile():
         flash('Please log in to view profile', 'error')
         return redirect(url_for('login'))
     
-    users = load_users()
+    user = User.query.filter_by(username=session['user']).first()
+    if not user:
+        flash('User not found', 'error')
+        return redirect(url_for('login'))
+    
     user_blogs = [blog for blog in get_all_blogs() if blog.get('author') == session['user']]
-    user_data = users[session['user']]
-    user_password = user_data['password'] if isinstance(user_data, dict) else user_data
-    personal_info = user_data.get('personal_info', {}) if isinstance(user_data, dict) else {}
+    personal_info = json.loads(user.personal_info)
     
     if request.method == 'POST':
         action = request.form.get('action')
         
         if action == 'update_profile_image':
-            if isinstance(user_data, str):
-                users[session['user']] = {'password': user_data, 'personal_info': {}}
-            
             if 'profile_image' in request.files:
                 file = request.files['profile_image']
                 if file and file.filename:
@@ -249,30 +248,29 @@ def profile():
                     if not os.path.exists(upload_dir):
                         os.makedirs(upload_dir)
                     file.save(os.path.join(upload_dir, filename))
-                    users[session['user']]['personal_info']['profile_image'] = f'uploads/{filename}'
-                    save_users(users)
+                    
+                    info = json.loads(user.personal_info)
+                    info['profile_image'] = f'uploads/{filename}'
+                    user.personal_info = json.dumps(info)
+                    db.session.commit()
                     flash('Profile picture updated successfully!', 'success')
         
         elif action == 'clear_profile_image':
-            if isinstance(user_data, str):
-                users[session['user']] = {'password': user_data, 'personal_info': {}}
-            
-            # Remove profile image file if it exists
-            if 'profile_image' in users[session['user']]['personal_info']:
-                old_image = users[session['user']]['personal_info']['profile_image']
+            info = json.loads(user.personal_info)
+            if 'profile_image' in info:
+                old_image = info['profile_image']
                 if old_image:
                     image_path = os.path.join('static', old_image)
                     if os.path.exists(image_path):
                         os.remove(image_path)
-                users[session['user']]['personal_info']['profile_image'] = ''
-                save_users(users)
+                info['profile_image'] = ''
+                user.personal_info = json.dumps(info)
+                db.session.commit()
                 flash('Profile picture removed successfully!', 'success')
         
         elif action == 'update_personal_info':
-            if isinstance(user_data, str):
-                users[session['user']] = {'password': user_data, 'personal_info': {}}
-            
-            users[session['user']]['personal_info'].update({
+            info = json.loads(user.personal_info)
+            info.update({
                 'name': request.form.get('name', ''),
                 'signature': request.form.get('signature', ''),
                 'address': request.form.get('address', ''),
@@ -287,39 +285,43 @@ def profile():
                 'github': request.form.get('github', ''),
                 'linkedin': request.form.get('linkedin', '')
             })
-            save_users(users)
+            user.personal_info = json.dumps(info)
+            db.session.commit()
             flash('Personal information updated successfully!', 'success')
         
         elif action == 'change_password':
             current_password = request.form['current_password']
             new_password = request.form['new_password']
             
-            if user_password != current_password:
+            if not user.check_password(current_password):
                 flash('Current password is incorrect', 'error')
             elif len(new_password) < 6:
                 flash('New password must be at least 6 characters', 'error')
             else:
-                if isinstance(user_data, str):
-                    users[session['user']] = {'password': new_password, 'personal_info': {}}
-                else:
-                    users[session['user']]['password'] = new_password
-                save_users(users)
+                user.set_password(new_password)
+                db.session.commit()
                 flash('Password changed successfully!', 'success')
         
         elif action == 'delete_account':
             password = request.form['password']
-            if user_password != password:
+            if not user.check_password(password):
                 flash('Password is incorrect', 'error')
             else:
-                # Delete user account
-                del users[session['user']]
-                save_users(users)
+                username = session['user']
                 
                 # Delete all user's blog posts
-                for blog in user_blogs:
-                    blog_file = os.path.join(BLOG_DIR, f"{blog['id']}.gz")
-                    if os.path.exists(blog_file):
-                        os.remove(blog_file)
+                Blog.query.filter_by(author=username).delete()
+                
+                # Delete all follow relationships
+                Follow.query.filter_by(follower=username).delete()
+                Follow.query.filter_by(following=username).delete()
+                
+                # Delete all notifications
+                Notification.query.filter_by(user=username).delete()
+                
+                # Delete user account
+                db.session.delete(user)
+                db.session.commit()
                 
                 session.pop('user', None)
                 flash('Account deleted successfully', 'success')
@@ -475,12 +477,21 @@ def sync_blogs():
     for blog_data in local_blogs:
         if blog_data.get('author') == session['user']:
             blog_id = blog_data['id']
-            blog_file = os.path.join(BLOG_DIR, f'{blog_id}.gz')
-            if not os.path.exists(blog_file):
-                with open(blog_file, 'w') as f:
-                    f.write(compress_data(blog_data))
+            existing_blog = Blog.query.get(blog_id)
+            if not existing_blog:
+                blog = Blog(
+                    id=blog_id,
+                    title=blog_data['title'],
+                    author=blog_data['author'],
+                    content=blog_data['content'],
+                    tags=json.dumps(blog_data.get('tags', [])),
+                    word_count=blog_data.get('word_count', 0),
+                    reading_time=blog_data.get('reading_time', 1)
+                )
+                db.session.add(blog)
                 synced_count += 1
     
+    db.session.commit()
     return jsonify({'success': True, 'synced': synced_count})
 
 @app.route('/autosave', methods=['POST'])
@@ -514,21 +525,12 @@ def edit_blog(blog_id):
         flash('Please log in to edit posts', 'error')
         return redirect(url_for('login'))
     
-    # Try .json first, then .gz
-    blog_file = os.path.join(BLOG_DIR, f'{blog_id}.json')
-    is_json = True
-    if not os.path.exists(blog_file):
-        blog_file = os.path.join(BLOG_DIR, f'{blog_id}.gz')
-        is_json = False
-    
-    if not os.path.exists(blog_file):
+    blog = Blog.query.get(blog_id)
+    if not blog:
         flash('Blog post not found', 'error')
         return redirect(url_for('index'))
     
-    with open(blog_file, 'r', encoding='utf-8') as f:
-        blog_data = json.load(f) if is_json else decompress_data(f.read())
-    
-    if blog_data.get('author') != session['user']:
+    if blog.author != session['user']:
         flash('You can only edit your own posts', 'error')
         return redirect(url_for('index'))
     
@@ -538,26 +540,25 @@ def edit_blog(blog_id):
         tags = request.form.get('tags', '')
         
         if title and content:
-            blog_data.update({
-                'title': title,
-                'content': content,
-                'tags': [tag.strip() for tag in tags.split(',') if tag.strip()],
-                'word_count': len(content.split()),
-                'reading_time': max(1, len(content.split()) // 200),
-                'updated_at': datetime.now().isoformat()
-            })
+            blog.title = title
+            blog.content = content
+            blog.tags = json.dumps([tag.strip() for tag in tags.split(',') if tag.strip()])
+            blog.word_count = len(content.split())
+            blog.reading_time = max(1, len(content.split()) // 200)
+            blog.updated_at = datetime.utcnow()
             
-            with open(blog_file, 'w', encoding='utf-8') as f:
-                if is_json:
-                    json.dump(blog_data, f, indent=2)
-                else:
-                    f.write(compress_data(blog_data))
-            
+            db.session.commit()
             flash('Blog post updated successfully!', 'success')
             return redirect(url_for('view_blog', blog_id=blog_id))
         else:
             flash('Please fill in all fields', 'error')
     
+    blog_data = {
+        'id': blog.id,
+        'title': blog.title,
+        'content': blog.content,
+        'tags': json.loads(blog.tags)
+    }
     return render_template('edit_blog.html', blog=blog_data)
 
 @app.route('/delete/<blog_id>', methods=['POST'])
@@ -566,22 +567,14 @@ def delete_blog(blog_id):
         flash('Please log in to delete posts', 'error')
         return redirect(url_for('login'))
     
-    # Try .json first, then .gz
-    blog_file = os.path.join(BLOG_DIR, f'{blog_id}.json')
-    is_json = True
-    if not os.path.exists(blog_file):
-        blog_file = os.path.join(BLOG_DIR, f'{blog_id}.gz')
-        is_json = False
-    
-    if os.path.exists(blog_file):
-        with open(blog_file, 'r', encoding='utf-8') as f:
-            blog_data = json.load(f) if is_json else decompress_data(f.read())
-        
-        if blog_data.get('author') != session['user']:
+    blog = Blog.query.get(blog_id)
+    if blog:
+        if blog.author != session['user']:
             flash('You can only delete your own posts', 'error')
             return redirect(url_for('index'))
         
-        os.remove(blog_file)
+        db.session.delete(blog)
+        db.session.commit()
         flash('Blog post deleted successfully!', 'success')
     else:
         flash('Blog post not found', 'error')
@@ -638,19 +631,9 @@ def add_comment(blog_id):
     if not comment_text:
         return jsonify({'error': 'Comment cannot be empty'}), 400
     
-    # Try .json first, then .gz
-    blog_file = os.path.join(BLOG_DIR, f'{blog_id}.json')
-    is_json = True
-    if not os.path.exists(blog_file):
-        blog_file = os.path.join(BLOG_DIR, f'{blog_id}.gz')
-        is_json = False
-    
-    if os.path.exists(blog_file):
-        with open(blog_file, 'r', encoding='utf-8') as f:
-            blog = json.load(f) if is_json else decompress_data(f.read())
-        
-        if 'comments' not in blog:
-            blog['comments'] = []
+    blog = Blog.query.get(blog_id)
+    if blog:
+        comments = json.loads(blog.comments)
         
         comment = {
             'author': session['user'],
@@ -658,20 +641,16 @@ def add_comment(blog_id):
             'created_at': datetime.now().strftime('%Y-%m-%d %H:%M')
         }
         
-        blog['comments'].append(comment)
-        
-        with open(blog_file, 'w', encoding='utf-8') as f:
-            if is_json:
-                json.dump(blog, f, indent=2)
-            else:
-                f.write(compress_data(blog))
+        comments.append(comment)
+        blog.comments = json.dumps(comments)
+        db.session.commit()
         
         # Add notification for blog author (if not self-comment)
-        if blog.get('author') != session['user']:
+        if blog.author != session['user']:
             add_notification(
-                blog['author'], 
+                blog.author, 
                 'comment', 
-                f"{session['user']} commented on your post '{blog['title'][:30]}{'...' if len(blog['title']) > 30 else ''}",
+                f"{session['user']} commented on your post '{blog.title[:30]}{'...' if len(blog.title) > 30 else ''}",
                 blog_id
             )
         
@@ -680,38 +659,20 @@ def add_comment(blog_id):
 
 @app.route('/comments/<blog_id>')
 def get_comments(blog_id):
-    # Try .json first, then .gz
-    blog_file = os.path.join(BLOG_DIR, f'{blog_id}.json')
-    is_json = True
-    if not os.path.exists(blog_file):
-        blog_file = os.path.join(BLOG_DIR, f'{blog_id}.gz')
-        is_json = False
-    
-    if os.path.exists(blog_file):
-        with open(blog_file, 'r', encoding='utf-8') as f:
-            blog = json.load(f) if is_json else decompress_data(f.read())
-        
-        comments = blog.get('comments', [])
+    blog = Blog.query.get(blog_id)
+    if blog:
+        comments = json.loads(blog.comments)
         return jsonify({'comments': comments})
     return jsonify({'error': 'Blog not found'}), 404
 
 @app.route('/share/<blog_id>')
 def share_blog(blog_id):
-    # Try .json first, then .gz
-    blog_file = os.path.join(BLOG_DIR, f'{blog_id}.json')
-    is_json = True
-    if not os.path.exists(blog_file):
-        blog_file = os.path.join(BLOG_DIR, f'{blog_id}.gz')
-        is_json = False
-    
-    if os.path.exists(blog_file):
-        with open(blog_file, 'r', encoding='utf-8') as f:
-            blog = json.load(f) if is_json else decompress_data(f.read())
-        
+    blog = Blog.query.get(blog_id)
+    if blog:
         share_data = {
-            'title': blog['title'],
+            'title': blog.title,
             'url': request.url_root + f'blog/{blog_id}',
-            'text': f"Check out this blog post: {blog['title']}"
+            'text': f"Check out this blog post: {blog.title}"
         }
         return jsonify(share_data)
     return jsonify({'error': 'Blog not found'}), 404
@@ -806,4 +767,4 @@ def follow_user(username):
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
-    app.run(host='0.0.0.0', port=port, debug=False)
+    app.run(host='127.0.0.1', port=port, debug=True)
