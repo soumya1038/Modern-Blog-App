@@ -22,24 +22,28 @@ def get_all_blogs():
     if not conn:
         return []
     
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM blogs ORDER BY created_at DESC")
-    blogs = cur.fetchall()
-    cur.close()
-    conn.close()
-    
-    blog_list = []
-    for blog in blogs:
-        blog_dict = dict(blog)
-        blog_dict['tags'] = json.loads(blog_dict.get('tags', '[]'))
-        blog_dict['liked_by'] = json.loads(blog_dict.get('liked_by', '[]'))
-        blog_dict['comments'] = json.loads(blog_dict.get('comments', '[]'))
-        if blog_dict['created_at']:
-            blog_dict['created_at'] = blog_dict['created_at'].isoformat()
-        if blog_dict.get('updated_at'):
-            blog_dict['updated_at'] = blog_dict['updated_at'].isoformat()
-        blog_list.append(blog_dict)
-    return blog_list
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM blogs ORDER BY created_at DESC")
+        blogs = cur.fetchall()
+        cur.close()
+        conn.close()
+        
+        blog_list = []
+        for blog in blogs:
+            blog_dict = dict(blog)
+            blog_dict['tags'] = json.loads(blog_dict.get('tags', '[]'))
+            blog_dict['liked_by'] = json.loads(blog_dict.get('liked_by', '[]'))
+            blog_dict['comments'] = json.loads(blog_dict.get('comments', '[]'))
+            if blog_dict['created_at']:
+                blog_dict['created_at'] = blog_dict['created_at'].isoformat()
+            if blog_dict.get('updated_at'):
+                blog_dict['updated_at'] = blog_dict['updated_at'].isoformat()
+            blog_list.append(blog_dict)
+        return blog_list
+    except Exception as e:
+        print(f"Database error: {e}")
+        return []
 
 @app.route('/')
 def index():
@@ -59,22 +63,26 @@ def register():
         else:
             conn = get_db_connection()
             if conn:
-                cur = conn.cursor()
-                cur.execute("SELECT username FROM users WHERE username = %s", (username,))
-                if cur.fetchone():
-                    flash('Username already exists', 'error')
-                else:
-                    password_hash = generate_password_hash(password)
-                    cur.execute("INSERT INTO users (username, password_hash, personal_info) VALUES (%s, %s, %s)", 
-                              (username, password_hash, '{}'))
-                    conn.commit()
-                    session['user'] = username
-                    flash('Account created successfully!', 'success')
+                try:
+                    cur = conn.cursor()
+                    cur.execute("SELECT username FROM users WHERE username = %s", (username,))
+                    if cur.fetchone():
+                        flash('Username already exists', 'error')
+                    else:
+                        password_hash = generate_password_hash(password)
+                        cur.execute("INSERT INTO users (username, password_hash, personal_info) VALUES (%s, %s, %s)", 
+                                  (username, password_hash, '{}'))
+                        conn.commit()
+                        session['user'] = username
+                        flash('Account created successfully!', 'success')
+                        cur.close()
+                        conn.close()
+                        return redirect(url_for('index'))
                     cur.close()
                     conn.close()
-                    return redirect(url_for('index'))
-                cur.close()
-                conn.close()
+                except Exception as e:
+                    flash('Database error. Please try again.', 'error')
+                    print(f"Registration error: {e}")
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -85,17 +93,22 @@ def login():
         
         conn = get_db_connection()
         if conn:
-            cur = conn.cursor()
-            cur.execute("SELECT password_hash FROM users WHERE username = %s", (username,))
-            user = cur.fetchone()
-            if user and check_password_hash(user['password_hash'], password):
-                session['user'] = username
-                flash('Logged in successfully!', 'success')
-                return jsonify({'success': True, 'username': username})
-            else:
-                return jsonify({'success': False, 'message': 'Invalid username or password'})
-            cur.close()
-            conn.close()
+            try:
+                cur = conn.cursor()
+                cur.execute("SELECT password_hash FROM users WHERE username = %s", (username,))
+                user = cur.fetchone()
+                if user and check_password_hash(user['password_hash'], password):
+                    session['user'] = username
+                    flash('Logged in successfully!', 'success')
+                    return jsonify({'success': True, 'username': username})
+                else:
+                    return jsonify({'success': False, 'message': 'Invalid username or password'})
+                cur.close()
+                conn.close()
+            except Exception as e:
+                return jsonify({'success': False, 'message': 'Database error'})
+        else:
+            return jsonify({'success': False, 'message': 'Database unavailable'})
     return render_template('login.html')
 
 @app.route('/logout')
@@ -120,18 +133,24 @@ def add_blog():
             
             conn = get_db_connection()
             if conn:
-                cur = conn.cursor()
-                cur.execute("""
-                    INSERT INTO blogs (id, title, content, author, tags, word_count, reading_time) 
-                    VALUES (%s, %s, %s, %s, %s, %s, %s)
-                """, (blog_id, title, content, session['user'], 
-                     json.dumps([tag.strip() for tag in tags.split(',') if tag.strip()]),
-                     len(content.split()), max(1, len(content.split()) // 200)))
-                conn.commit()
-                cur.close()
-                conn.close()
-                flash('Blog post created successfully!', 'success')
-                return redirect(url_for('view_blog', blog_id=blog_id))
+                try:
+                    cur = conn.cursor()
+                    cur.execute("""
+                        INSERT INTO blogs (id, title, content, author, tags, word_count, reading_time) 
+                        VALUES (%s, %s, %s, %s, %s, %s, %s)
+                    """, (blog_id, title, content, session['user'], 
+                         json.dumps([tag.strip() for tag in tags.split(',') if tag.strip()]),
+                         len(content.split()), max(1, len(content.split()) // 200)))
+                    conn.commit()
+                    cur.close()
+                    conn.close()
+                    flash('Blog post created successfully!', 'success')
+                    return redirect(url_for('view_blog', blog_id=blog_id))
+                except Exception as e:
+                    flash('Error creating blog post. Please try again.', 'error')
+                    print(f"Blog creation error: {e}")
+            else:
+                flash('Database unavailable', 'error')
         else:
             flash('Please fill in all fields', 'error')
     
@@ -143,11 +162,15 @@ def view_blog(blog_id):
     if not conn:
         return "Blog not found", 404
     
-    cur = conn.cursor()
-    cur.execute("SELECT * FROM blogs WHERE id = %s", (blog_id,))
-    blog_obj = cur.fetchone()
-    cur.close()
-    conn.close()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM blogs WHERE id = %s", (blog_id,))
+        blog_obj = cur.fetchone()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        print(f"Blog view error: {e}")
+        return "Database error", 500
     
     if blog_obj:
         blog = dict(blog_obj)
