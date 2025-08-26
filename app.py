@@ -1,88 +1,145 @@
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
+from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
 import markdown
 import os
 import json
 from datetime import datetime
 import urllib.parse
-import gzip
-import base64
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here')
-app.config['DATABASE'] = os.environ.get('DATABASE_URL', 'sqlite:///blog.db')
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///blog.db')
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
 
-BLOG_DIR = 'blogs'
-if not os.path.exists(BLOG_DIR):
-    os.makedirs(BLOG_DIR)
+# Database Models
+class User(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(80), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=False)
+    personal_info = db.Column(db.Text, default='{}')
+    
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+    
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
 
-def compress_data(data):
-    json_str = json.dumps(data)
-    compressed = gzip.compress(json_str.encode('utf-8'))
-    return base64.b64encode(compressed).decode('utf-8')
+class Blog(db.Model):
+    id = db.Column(db.String(200), primary_key=True)
+    title = db.Column(db.String(200), nullable=False)
+    content = db.Column(db.Text, nullable=False)
+    author = db.Column(db.String(80), nullable=False)
+    tags = db.Column(db.Text, default='[]')
+    word_count = db.Column(db.Integer, default=0)
+    reading_time = db.Column(db.Integer, default=1)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime)
+    likes = db.Column(db.Integer, default=0)
+    liked_by = db.Column(db.Text, default='[]')
+    comments = db.Column(db.Text, default='[]')
 
-def decompress_data(encoded_data):
-    compressed = base64.b64decode(encoded_data)
-    json_str = gzip.decompress(compressed).decode('utf-8')
-    return json.loads(json_str)
+class Follow(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    follower = db.Column(db.String(80), nullable=False)
+    following = db.Column(db.String(80), nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+class Notification(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user = db.Column(db.String(80), nullable=False)
+    type = db.Column(db.String(50), nullable=False)
+    message = db.Column(db.Text, nullable=False)
+    blog_id = db.Column(db.String(200))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    read = db.Column(db.Boolean, default=False)
+
+# Create tables
+with app.app_context():
+    db.create_all()
 
 def get_all_blogs():
-    blogs = []
-    if os.path.exists(BLOG_DIR):
-        for filename in os.listdir(BLOG_DIR):
-            if filename.endswith('.gz') or filename.endswith('.json'):
-                with open(os.path.join(BLOG_DIR, filename), 'r', encoding='utf-8') as f:
-                    if filename.endswith('.json'):
-                        blog = json.load(f)
-                    else:
-                        blog = decompress_data(f.read())
-                    # Initialize likes if not present
-                    if 'likes' not in blog:
-                        blog['likes'] = 0
-                    blogs.append(blog)
-    return sorted(blogs, key=lambda x: x['created_at'], reverse=True)
-
-# Simple user storage (in production, use a proper database)
-USERS_FILE = 'users.json'
-NOTIFICATIONS_FILE = 'notifications.json'
-FOLLOWS_FILE = 'follows.json'
+    blogs = Blog.query.order_by(Blog.created_at.desc()).all()
+    blog_list = []
+    for blog in blogs:
+        blog_dict = {
+            'id': blog.id,
+            'title': blog.title,
+            'content': blog.content,
+            'author': blog.author,
+            'tags': json.loads(blog.tags),
+            'word_count': blog.word_count,
+            'reading_time': blog.reading_time,
+            'created_at': blog.created_at.isoformat(),
+            'likes': blog.likes,
+            'liked_by': json.loads(blog.liked_by),
+            'comments': json.loads(blog.comments)
+        }
+        if blog.updated_at:
+            blog_dict['updated_at'] = blog.updated_at.isoformat()
+        blog_list.append(blog_dict)
+    return blog_list
 
 def load_users():
-    if os.path.exists(USERS_FILE):
-        with open(USERS_FILE, 'r') as f:
-            users = json.load(f)
-            # Migrate old user format to new format with personal info
-            for username, data in users.items():
-                if isinstance(data, str):  # Old format: username -> password
-                    users[username] = {
-                        'password': data,
-                        'personal_info': {}
-                    }
-            return users
-    return {}
+    users = {}
+    for user in User.query.all():
+        users[user.username] = {
+            'password': user.password_hash,
+            'personal_info': json.loads(user.personal_info)
+        }
+    return users
 
 def save_users(users):
-    with open(USERS_FILE, 'w') as f:
-        json.dump(users, f, indent=2)
+    for username, data in users.items():
+        user = User.query.filter_by(username=username).first()
+        if user:
+            if 'personal_info' in data:
+                user.personal_info = json.dumps(data['personal_info'])
+            if 'password' in data and not data['password'].startswith('pbkdf2'):
+                user.set_password(data['password'])
+        else:
+            user = User(username=username, personal_info=json.dumps(data.get('personal_info', {})))
+            if 'password' in data:
+                user.set_password(data['password'])
+            db.session.add(user)
+    db.session.commit()
 
 def load_notifications():
-    if os.path.exists(NOTIFICATIONS_FILE):
-        with open(NOTIFICATIONS_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    return {}
+    notifications = {}
+    for notif in Notification.query.all():
+        if notif.user not in notifications:
+            notifications[notif.user] = []
+        notifications[notif.user].append({
+            'id': str(notif.id),
+            'type': notif.type,
+            'message': notif.message,
+            'blog_id': notif.blog_id,
+            'created_at': notif.created_at.isoformat(),
+            'read': notif.read
+        })
+    return notifications
 
 def save_notifications(notifications):
-    with open(NOTIFICATIONS_FILE, 'w', encoding='utf-8') as f:
-        json.dump(notifications, f, indent=2)
+    # This function is kept for compatibility but notifications are saved directly
+    pass
 
 def load_follows():
-    if os.path.exists(FOLLOWS_FILE):
-        with open(FOLLOWS_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    return {}
+    follows = {}
+    for follow in Follow.query.all():
+        if follow.follower not in follows:
+            follows[follow.follower] = []
+        follows[follow.follower].append(follow.following)
+    return follows
 
 def save_follows(follows):
-    with open(FOLLOWS_FILE, 'w', encoding='utf-8') as f:
-        json.dump(follows, f, indent=2)
+    # Clear existing follows and rebuild
+    Follow.query.delete()
+    for follower, following_list in follows.items():
+        for following in following_list:
+            follow = Follow(follower=follower, following=following)
+            db.session.add(follow)
+    db.session.commit()
 
 def get_followers_count(username):
     follows = load_follows()
@@ -97,23 +154,22 @@ def get_following_count(username):
     return len(follows.get(username, []))
 
 def add_notification(user, type, message, blog_id=None):
-    notifications = load_notifications()
-    if user not in notifications:
-        notifications[user] = []
+    notification = Notification(
+        user=user,
+        type=type,
+        message=message,
+        blog_id=blog_id
+    )
+    db.session.add(notification)
     
-    notification = {
-        'id': str(len(notifications[user]) + 1),
-        'type': type,
-        'message': message,
-        'blog_id': blog_id,
-        'created_at': datetime.now().isoformat(),
-        'read': False
-    }
-    
-    notifications[user].append(notification)
     # Keep only last 50 notifications per user
-    notifications[user] = notifications[user][-50:]
-    save_notifications(notifications)
+    user_notifications = Notification.query.filter_by(user=user).order_by(Notification.created_at.desc()).all()
+    if len(user_notifications) >= 50:
+        old_notifications = user_notifications[49:]
+        for old_notif in old_notifications:
+            db.session.delete(old_notif)
+    
+    db.session.commit()
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -131,17 +187,16 @@ def register():
                 return jsonify({'success': False, 'message': 'Password must be at least 6 characters'})
             flash('Password must be at least 6 characters', 'error')
         else:
-            users = load_users()
-            if username in users:
+            existing_user = User.query.filter_by(username=username).first()
+            if existing_user:
                 if request.headers.get('Accept') == 'application/json':
                     return jsonify({'success': False, 'message': 'Username already exists'})
                 flash('Username already exists', 'error')
             else:
-                users[username] = {
-                    'password': password,
-                    'personal_info': {}
-                }
-                save_users(users)
+                user = User(username=username, personal_info=json.dumps({}))
+                user.set_password(password)
+                db.session.add(user)
+                db.session.commit()
                 session['user'] = username
                 
                 if request.headers.get('Accept') == 'application/json':
@@ -157,10 +212,8 @@ def login():
         password = request.form['password']
         remember_me = request.form.get('remember_me')
         
-        users = load_users()
-        user_data = users.get(username)
-        user_password = user_data['password'] if isinstance(user_data, dict) else user_data
-        if username in users and user_password == password:
+        user = User.query.filter_by(username=username).first()
+        if user and user.check_password(password):
             session['user'] = username
             flash('Logged in successfully!', 'success')
             return jsonify({'success': True, 'remember': bool(remember_me), 'username': username})
@@ -298,19 +351,16 @@ def auto_login():
     username = data.get('username')
     password = data.get('password')
     
-    users = load_users()
-    user_data = users.get(username)
-    user_password = user_data['password'] if isinstance(user_data, dict) else user_data
-    if username in users and user_password == password:
+    user = User.query.filter_by(username=username).first()
+    if user and user.check_password(password):
         session['user'] = username
         return jsonify({'success': True})
     return jsonify({'success': False})
 
 def get_user_info(username):
-    users = load_users()
-    user_data = users.get(username, {})
-    if isinstance(user_data, dict):
-        return user_data.get('personal_info', {})
+    user = User.query.filter_by(username=username).first()
+    if user:
+        return json.loads(user.personal_info)
     return {}
 
 @app.context_processor
@@ -331,28 +381,25 @@ def index():
 
 @app.route('/blog/<blog_id>')
 def view_blog(blog_id):
-    # Try .json first, then .gz
-    blog_file = os.path.join(BLOG_DIR, f'{blog_id}.json')
-    is_json = True
-    if not os.path.exists(blog_file):
-        blog_file = os.path.join(BLOG_DIR, f'{blog_id}.gz')
-        is_json = False
-    
-    if os.path.exists(blog_file):
-        with open(blog_file, 'r', encoding='utf-8') as f:
-            blog = json.load(f) if is_json else decompress_data(f.read())
+    blog_obj = Blog.query.get(blog_id)
+    if blog_obj:
+        blog = {
+            'id': blog_obj.id,
+            'title': blog_obj.title,
+            'content': blog_obj.content,
+            'author': blog_obj.author,
+            'tags': json.loads(blog_obj.tags),
+            'word_count': blog_obj.word_count,
+            'reading_time': blog_obj.reading_time,
+            'created_at': blog_obj.created_at.isoformat(),
+            'likes': blog_obj.likes,
+            'liked_by': json.loads(blog_obj.liked_by),
+            'comments': json.loads(blog_obj.comments)
+        }
+        if blog_obj.updated_at:
+            blog['updated_at'] = blog_obj.updated_at.isoformat()
         
         blog['content_html'] = markdown.markdown(blog['content'])
-        
-        # Initialize likes and comments if not present
-        if 'likes' not in blog:
-            blog['likes'] = 0
-        if 'liked_by' not in blog:
-            blog['liked_by'] = []
-        if 'comments' not in blog:
-            blog['comments'] = []
-        
-        # Check if current user has liked this post
         blog['user_liked'] = session.get('user') in blog['liked_by'] if 'user' in session else False
         
         return render_template('blog.html', blog=blog)
@@ -373,6 +420,20 @@ def add_blog():
         
         if title and content:
             blog_id = title.lower().replace(' ', '-').replace('.', '').replace(',', '').replace('?', '').replace('!', '')
+            
+            if not save_local:
+                blog = Blog(
+                    id=blog_id,
+                    title=title,
+                    author=session['user'],
+                    content=content,
+                    tags=json.dumps([tag.strip() for tag in tags.split(',') if tag.strip()]),
+                    word_count=len(content.split()),
+                    reading_time=max(1, len(content.split()) // 200)
+                )
+                db.session.add(blog)
+                db.session.commit()
+            
             blog_data = {
                 'id': blog_id,
                 'title': title,
@@ -383,11 +444,6 @@ def add_blog():
                 'reading_time': max(1, len(content.split()) // 200),
                 'created_at': datetime.now().isoformat()
             }
-            
-            if not save_local:
-                blog_file = os.path.join(BLOG_DIR, f'{blog_id}.gz')
-                with open(blog_file, 'w') as f:
-                    f.write(compress_data(blog_data))
             
             if request.is_json:
                 return jsonify({'success': True, 'blog_id': blog_id, 'blog_data': blog_data})
@@ -536,51 +592,36 @@ def like_blog(blog_id):
     if 'user' not in session:
         return jsonify({'error': 'Please log in to like posts'}), 401
     
-    # Try .json first, then .gz
-    blog_file = os.path.join(BLOG_DIR, f'{blog_id}.json')
-    is_json = True
-    if not os.path.exists(blog_file):
-        blog_file = os.path.join(BLOG_DIR, f'{blog_id}.gz')
-        is_json = False
-    
-    if os.path.exists(blog_file):
-        with open(blog_file, 'r', encoding='utf-8') as f:
-            blog = json.load(f) if is_json else decompress_data(f.read())
-        
-        if 'likes' not in blog:
-            blog['likes'] = 0
-        if 'liked_by' not in blog:
-            blog['liked_by'] = []
-        
+    blog = Blog.query.get(blog_id)
+    if blog:
+        liked_by = json.loads(blog.liked_by)
         user = session['user']
-        if user in blog['liked_by']:
-            blog['liked_by'].remove(user)
-            blog['likes'] -= 1
+        
+        if user in liked_by:
+            liked_by.remove(user)
+            blog.likes -= 1
             liked = False
             message = 'Like removed'
         else:
-            blog['liked_by'].append(user)
-            blog['likes'] += 1
+            liked_by.append(user)
+            blog.likes += 1
             liked = True
             message = 'Post liked!'
         
-        with open(blog_file, 'w', encoding='utf-8') as f:
-            if is_json:
-                json.dump(blog, f, indent=2)
-            else:
-                f.write(compress_data(blog))
+        blog.liked_by = json.dumps(liked_by)
+        db.session.commit()
         
         # Add notification for blog author (if not self-like)
-        if liked and blog.get('author') != user:
+        if liked and blog.author != user:
             add_notification(
-                blog['author'], 
+                blog.author, 
                 'like', 
-                f"{user} liked your post '{blog['title'][:30]}{'...' if len(blog['title']) > 30 else ''}",
+                f"{user} liked your post '{blog.title[:30]}{'...' if len(blog.title) > 30 else ''}",
                 blog_id
             )
         
         return jsonify({
-            'likes': blog['likes'],
+            'likes': blog.likes,
             'liked': liked,
             'message': message
         })
@@ -680,22 +721,26 @@ def get_notifications():
     if 'user' not in session:
         return jsonify({'notifications': []})
     
-    notifications = load_notifications()
-    user_notifications = notifications.get(session['user'], [])
-    # Return notifications in reverse order (newest first)
-    return jsonify({'notifications': list(reversed(user_notifications))})
+    notifications = Notification.query.filter_by(user=session['user']).order_by(Notification.created_at.desc()).all()
+    notification_list = []
+    for notif in notifications:
+        notification_list.append({
+            'id': str(notif.id),
+            'type': notif.type,
+            'message': notif.message,
+            'blog_id': notif.blog_id,
+            'created_at': notif.created_at.isoformat(),
+            'read': notif.read
+        })
+    return jsonify({'notifications': notification_list})
 
 @app.route('/notifications/mark-read', methods=['POST'])
 def mark_notifications_read():
     if 'user' not in session:
         return jsonify({'success': False})
     
-    notifications = load_notifications()
-    if session['user'] in notifications:
-        for notif in notifications[session['user']]:
-            notif['read'] = True
-        save_notifications(notifications)
-    
+    Notification.query.filter_by(user=session['user']).update({'read': True})
+    db.session.commit()
     return jsonify({'success': True})
 
 @app.route('/notifications/mark-all-read', methods=['POST'])
@@ -716,11 +761,8 @@ def clear_all_notifications():
     if 'user' not in session:
         return jsonify({'success': False})
     
-    notifications = load_notifications()
-    if session['user'] in notifications:
-        notifications[session['user']] = []
-        save_notifications(notifications)
-    
+    Notification.query.filter_by(user=session['user']).delete()
+    db.session.commit()
     return jsonify({'success': True})
 
 @app.route('/follow/<username>', methods=['POST'])
@@ -735,26 +777,23 @@ def follow_user(username):
         return jsonify({'success': False, 'message': 'You cannot follow yourself'})
     
     # Check if user exists
-    users = load_users()
-    if username not in users:
+    user_exists = User.query.filter_by(username=username).first()
+    if not user_exists:
         return jsonify({'success': False, 'message': 'User not found'})
     
-    follows = load_follows()
-    
-    # Initialize if not exists
-    if current_user not in follows:
-        follows[current_user] = []
-    
     # Check if already following
-    if username in follows[current_user]:
+    existing_follow = Follow.query.filter_by(follower=current_user, following=username).first()
+    
+    if existing_follow:
         # Unfollow
-        follows[current_user].remove(username)
-        save_follows(follows)
+        db.session.delete(existing_follow)
+        db.session.commit()
         return jsonify({'success': True, 'message': f'Unfollowed {username}', 'action': 'unfollowed'})
     else:
         # Follow
-        follows[current_user].append(username)
-        save_follows(follows)
+        follow = Follow(follower=current_user, following=username)
+        db.session.add(follow)
+        db.session.commit()
         
         # Add notification for followed user
         add_notification(
