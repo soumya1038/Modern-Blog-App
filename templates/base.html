@@ -115,46 +115,133 @@
         ::-webkit-scrollbar-thumb:hover {
             background: linear-gradient(to bottom, #4f46e5, #7c3aed);
         }
+        
+        /* Advanced Header Animations */
+        @keyframes gradient-x {
+            0%, 100% {
+                transform: translateX(-100%);
+            }
+            50% {
+                transform: translateX(100%);
+            }
+        }
+        
+        .animate-gradient-x {
+            animation: gradient-x 8s ease-in-out infinite;
+        }
+        
+        .floating-orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(1px);
+            animation: float 6s ease-in-out infinite;
+        }
+        
+        .orb-1 {
+            width: 60px;
+            height: 60px;
+            background: radial-gradient(circle, rgba(34, 211, 238, 0.4) 0%, transparent 70%);
+            top: 10%;
+            left: 10%;
+            animation-delay: 0s;
+        }
+        
+        .orb-2 {
+            width: 40px;
+            height: 40px;
+            background: radial-gradient(circle, rgba(168, 85, 247, 0.4) 0%, transparent 70%);
+            top: 60%;
+            right: 20%;
+            animation-delay: -2s;
+        }
+        
+        .orb-3 {
+            width: 80px;
+            height: 80px;
+            background: radial-gradient(circle, rgba(236, 72, 153, 0.3) 0%, transparent 70%);
+            bottom: 20%;
+            left: 60%;
+            animation-delay: -4s;
+        }
+        
+        .nav-link::before {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            width: 0;
+            height: 2px;
+            background: linear-gradient(90deg, #06b6d4, #8b5cf6);
+            transition: all 0.3s ease;
+            transform: translateX(-50%);
+        }
+        
+        .nav-link:hover::before {
+            width: 100%;
+        }
+        
+        /* Scroll Effect */
+        .nav-scrolled {
+            background: rgba(15, 23, 42, 0.98) !important;
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+        
+        .nav-scrolled .floating-orb {
+            opacity: 0.3;
+        }
     </style>
 </head>
-<body class="bg-gradient-to-br from-indigo-50 via-white to-purple-50 min-h-screen font-sans">
-    <nav class="glass sticky top-0 z-50 backdrop-blur-md">
-        <div class="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex justify-between h-16">
-                <div class="flex items-center">
-                    <a href="{{ url_for('index') }}" class="text-xl sm:text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent hover:scale-105 transition-transform duration-200">
-                        ✨ ModernBlog
-                    </a>
-                </div>
+<body class="bg-gradient-to-br from-indigo-50 via-white to-purple-50 min-h-screen font-sans pt-16">
+    <nav class="fixed top-0 left-0 right-0 z-50 bg-black/90 backdrop-blur-2xl border-b border-white/5" id="modernNav">
+        <div class="absolute inset-0 bg-gradient-to-r from-emerald-600/20 via-teal-600/20 to-cyan-600/20 animate-pulse"></div>
+        <div class="absolute inset-0 overflow-hidden">
+            <div class="absolute -top-40 -right-32 w-80 h-80 bg-gradient-to-br from-emerald-500/30 to-teal-500/30 rounded-full blur-3xl animate-spin-slow"></div>
+            <div class="absolute -bottom-40 -left-32 w-80 h-80 bg-gradient-to-br from-teal-500/30 to-cyan-500/30 rounded-full blur-3xl animate-bounce"></div>
+        </div>
+        <div class="relative max-w-7xl mx-auto px-6">
+            <div class="flex justify-between items-center h-16">
+                <a href="{{ url_for('index') }}" class="group flex items-center space-x-3">
+                    <div class="relative">
+                        <div class="absolute -inset-1 bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 rounded-lg blur opacity-75 group-hover:opacity-100 transition duration-300 animate-pulse"></div>
+                        <div class="relative w-10 h-10 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-lg flex items-center justify-center">
+                            <span class="text-white text-xl animate-bounce">🌊</span>
+                        </div>
+                    </div>
+                    <span class="text-2xl font-black bg-gradient-to-r from-emerald-400 via-teal-400 to-cyan-400 bg-clip-text text-transparent">
+                        ModernBlog
+                    </span>
+                </a>
                 
                 <!-- Desktop Navigation -->
                 <div class="hidden sm:flex items-center space-x-4">
-                    <a href="{{ url_for('index') }}" class="text-gray-700 hover:text-indigo-600 transition-all duration-200 font-medium hover:scale-105">Home</a>
+                    <a href="{{ url_for('index') }}" class="text-white/90 hover:text-white transition-all duration-200 font-medium hover:scale-105">Home</a>
                     {% if session.user %}
-                        <a href="{{ url_for('add_blog') }}" class="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-6 py-2.5 rounded-full hover:shadow-lg hover:scale-105 transition-all duration-200 font-medium">
+                        <a href="{{ url_for('add_blog') }}" class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-6 py-2.5 rounded-full hover:shadow-lg hover:scale-105 transition-all duration-200 font-medium">
                             ✍️ Write Post
                         </a>
                         <!-- Notification Button -->
                         <div class="relative">
-                            <button id="notificationBtn" onclick="toggleNotifications()" class="relative p-3 text-slate-600 hover:text-white hover:bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl transition-all duration-300 hover:scale-110 hover:shadow-lg group">
+                            <button id="notificationBtn" onclick="toggleNotifications()" class="relative p-3 text-white/90 hover:text-white hover:bg-white/10 rounded-xl transition-all duration-300 hover:scale-110 hover:shadow-lg group">
                                 <svg class="w-5 h-5 transition-transform duration-300 group-hover:rotate-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-3.5-3.5a50.002 50.002 0 00-2.5-2.5V8a6 6 0 10-12 0v2.5a50.002 50.002 0 00-2.5 2.5L3 17h5m4 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
                                 </svg>
                                 <span id="notificationDot" class="absolute -top-1 -right-1 w-3.5 h-3.5 bg-gradient-to-r from-red-500 to-pink-500 rounded-full hidden animate-bounce shadow-lg border-2 border-white"></span>
                             </button>
                         </div>
-                        <a href="{{ url_for('profile') }}" class="flex items-center space-x-2 text-gray-600 hover:text-indigo-600 transition-colors">
+                        <a href="{{ url_for('profile') }}" class="flex items-center space-x-2 text-white/90 hover:text-white transition-colors">
                             {% set user_info = get_user_info(session.user) %}
                             {% if user_info.profile_image %}
-                                <img src="{{ url_for('static', filename=user_info.profile_image) }}" alt="{{ session.user }}" class="w-6 h-6 rounded-full object-cover border border-gray-300">
+                                <img src="{{ url_for('static', filename=user_info.profile_image) }}" alt="{{ session.user }}" class="w-6 h-6 rounded-full object-cover border border-white/30">
                             {% else %}
                                 <span class="text-lg">👤</span>
                             {% endif %}
                             <span>{{ session.user }}</span>
                         </a>
-                        <a href="{{ url_for('logout') }}" onclick="sessionStorage.setItem('manualLogout', 'true');" class="text-gray-700 hover:text-red-600 transition-all duration-200 font-medium">🚪 Logout</a>
+                        <a href="{{ url_for('logout') }}" onclick="sessionStorage.setItem('manualLogout', 'true');" class="text-white/90 hover:text-red-400 transition-all duration-200 font-medium">🚪 Logout</a>
                     {% else %}
-                        <a href="{{ url_for('login') }}" class="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-6 py-2.5 rounded-full hover:shadow-lg hover:scale-105 transition-all duration-200 font-medium">
+                        <a href="{{ url_for('login') }}" class="bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-6 py-2.5 rounded-full hover:shadow-lg hover:scale-105 transition-all duration-200 font-medium">
                             🔐 Login
                         </a>
                     {% endif %}
@@ -169,12 +256,12 @@
                         {% if user_info.profile_image %}
                             <img src="{{ url_for('static', filename=user_info.profile_image) }}" alt="{{ session.user }}" class="w-8 h-8 rounded-full object-cover border-2 border-indigo-200 hover:border-indigo-400 transition-colors">
                         {% else %}
-                            <div class="w-8 h-8 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white text-sm font-bold border-2 border-indigo-200 hover:border-indigo-400 transition-colors">{{ session.user[0].upper() }}</div>
+                            <div class="w-8 h-8 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center text-white text-sm font-bold border-2 border-emerald-200 hover:border-emerald-400 transition-colors">{{ session.user[0].upper() }}</div>
                         {% endif %}
                     </a>
                     <!-- Mobile Notification Button -->
                     <div class="relative">
-                        <button id="mobileNotificationBtn" onclick="toggleNotifications()" class="relative p-2 text-slate-600 hover:text-violet-600 hover:bg-violet-50 rounded-lg transition-all duration-200">
+                        <button id="mobileNotificationBtn" onclick="toggleNotifications()" class="relative p-2 text-white/90 hover:text-white hover:bg-white/10 rounded-lg transition-all duration-200">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-3.5-3.5a50.002 50.002 0 00-2.5-2.5V8a6 6 0 10-12 0v2.5a50.002 50.002 0 00-2.5 2.5L3 17h5m4 0v1a3 3 0 11-6 0v-1m6 0H9"></path>
                             </svg>
@@ -183,7 +270,7 @@
                     </div>
                     {% endif %}
                     <!-- Mobile Menu Button -->
-                    <button id="mobile-menu-btn" class="p-2 text-gray-700 hover:text-indigo-600 focus:outline-none focus:text-indigo-600 transition-colors rounded-lg">
+                    <button id="mobile-menu-btn" class="p-2 text-white/90 hover:text-white focus:outline-none focus:text-white transition-colors rounded-lg">
                         <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
                         </svg>
@@ -226,24 +313,24 @@
             <!-- Mobile Navigation Menu -->
             <div id="mobile-menu" class="sm:hidden hidden bg-white/95 backdrop-blur-lg rounded-2xl mt-2 shadow-xl border border-white/60">
                 <div class="px-4 py-4 space-y-3">
-                    <a href="{{ url_for('index') }}" class="block text-gray-700 hover:text-indigo-600 transition-colors font-medium py-2">🏠 Home</a>
+                    <a href="{{ url_for('index') }}" class="block text-white/90 hover:text-white transition-colors font-medium py-2">🏠 Home</a>
                     {% if session.user %}
-                        <a href="{{ url_for('add_blog') }}" class="block bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-4 py-3 rounded-xl font-medium text-center">
+                        <a href="{{ url_for('add_blog') }}" class="block bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-4 py-3 rounded-xl font-medium text-center">
                             ✍️ Write Post
                         </a>
 
-                        <a href="{{ url_for('profile') }}" class="flex items-center space-x-3 text-gray-600 hover:text-indigo-600 transition-colors py-2">
+                        <a href="{{ url_for('profile') }}" class="flex items-center space-x-3 text-white/90 hover:text-white transition-colors py-2">
                             {% set user_info = get_user_info(session.user) %}
                             {% if user_info.profile_image %}
-                                <img src="{{ url_for('static', filename=user_info.profile_image) }}" alt="{{ session.user }}" class="w-8 h-8 rounded-full object-cover border border-gray-300">
+                                <img src="{{ url_for('static', filename=user_info.profile_image) }}" alt="{{ session.user }}" class="w-8 h-8 rounded-full object-cover border border-white/30">
                             {% else %}
                                 <span class="text-xl">👤</span>
                             {% endif %}
                             <span class="font-medium">{{ session.user }}</span>
                         </a>
-                        <a href="{{ url_for('logout') }}" onclick="sessionStorage.setItem('manualLogout', 'true');" class="block text-red-600 hover:text-red-700 transition-colors font-medium py-2">🚪 Logout</a>
+                        <a href="{{ url_for('logout') }}" onclick="sessionStorage.setItem('manualLogout', 'true');" class="block text-red-400 hover:text-red-300 transition-colors font-medium py-2">🚪 Logout</a>
                     {% else %}
-                        <a href="{{ url_for('login') }}" class="block bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-4 py-3 rounded-xl font-medium text-center">
+                        <a href="{{ url_for('login') }}" class="block bg-gradient-to-r from-emerald-500 to-teal-600 text-white px-4 py-3 rounded-xl font-medium text-center">
                             🔐 Login
                         </a>
                     {% endif %}
@@ -370,6 +457,29 @@
                 loadNotifications();
                 setInterval(loadNotifications, 30000);
             }
+            
+            // Advanced Header Effects
+            const nav = document.getElementById('modernNav');
+            let lastScrollY = window.scrollY;
+            
+            window.addEventListener('scroll', () => {
+                const currentScrollY = window.scrollY;
+                
+                if (currentScrollY > 50) {
+                    nav.classList.add('nav-scrolled');
+                } else {
+                    nav.classList.remove('nav-scrolled');
+                }
+                
+                // Hide/show nav on scroll
+                if (currentScrollY > lastScrollY && currentScrollY > 100) {
+                    nav.style.transform = 'translateY(-100%)';
+                } else {
+                    nav.style.transform = 'translateY(0)';
+                }
+                
+                lastScrollY = currentScrollY;
+            });
         });
         
         function toggleNotifications() {
