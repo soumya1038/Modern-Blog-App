@@ -2,7 +2,7 @@ services:
   - type: web
     name: modern-blog
     env: python
-    runtime: python-3.12.0
+    runtime: python-3.11.9
     buildCommand: pip install -r requirements.txt && python init_db.py
     startCommand: gunicorn app:app --bind 0.0.0.0:$PORT
     envVars:
