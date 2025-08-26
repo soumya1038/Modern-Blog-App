@@ -4,18 +4,20 @@ import markdown
 import os
 import json
 from datetime import datetime
-import psycopg2
-from psycopg2.extras import RealDictCursor
+import sqlite3
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here')
 database_url = os.environ.get('DATABASE_URL', 'sqlite:///blog.db')
 
 def get_db_connection():
-    if database_url.startswith('postgres'):
-        url = database_url.replace('postgres://', 'postgresql://', 1) if database_url.startswith('postgres://') else database_url
-        return psycopg2.connect(url, cursor_factory=RealDictCursor)
-    return None
+    return sqlite3.connect('blog.db')
+
+def dict_factory(cursor, row):
+    d = {}
+    for idx, col in enumerate(cursor.description):
+        d[col[0]] = row[idx]
+    return d
 
 def get_all_blogs():
     conn = get_db_connection()
@@ -23,6 +25,7 @@ def get_all_blogs():
         return []
     
     try:
+        conn.row_factory = dict_factory
         cur = conn.cursor()
         cur.execute("SELECT * FROM blogs ORDER BY created_at DESC")
         blogs = cur.fetchall()
