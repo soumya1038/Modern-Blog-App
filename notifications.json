@@ -1,0 +1,56 @@
+{
+  "ABC": [
+    {
+      "id": "1",
+      "type": "follow",
+      "message": "soumya started following you",
+      "blog_id": null,
+      "created_at": "2025-08-26T20:46:42.563060",
+      "read": true
+    },
+    {
+      "id": "2",
+      "type": "follow",
+      "message": "Soumya started following you",
+      "blog_id": null,
+      "created_at": "2025-08-27T02:12:45.889949",
+      "read": true
+    }
+  ],
+  "soumya": [
+    {
+      "id": "1",
+      "type": "follow",
+      "message": "ABC started following you",
+      "blog_id": null,
+      "created_at": "2025-08-26T21:02:49.320560",
+      "read": true
+    }
+  ],
+  "Soumya": [
+    {
+      "id": "1",
+      "type": "like",
+      "message": "ABC liked your post 'A Day in the Life of AI",
+      "blog_id": "a-day-in-the-life-of-ai",
+      "created_at": "2025-08-27T02:13:03.455624",
+      "read": true
+    },
+    {
+      "id": "2",
+      "type": "follow",
+      "message": "ABC started following you",
+      "blog_id": null,
+      "created_at": "2025-08-27T02:13:04.711961",
+      "read": true
+    },
+    {
+      "id": "3",
+      "type": "comment",
+      "message": "ABC commented on your post 'A Day in the Life of AI",
+      "blog_id": "a-day-in-the-life-of-ai",
+      "created_at": "2025-08-27T02:13:33.556028",
+      "read": true
+    }
+  ]
+}
