@@ -248,8 +248,7 @@ def profile():
                     import uuid
                     filename = f"{uuid.uuid4().hex}_{file.filename}"
                     upload_dir = 'static/uploads'
-                    if not os.path.exists(upload_dir):
-                        os.makedirs(upload_dir)
+                    os.makedirs(upload_dir, exist_ok=True)
                     file.save(os.path.join(upload_dir, filename))
                     
                     info = json.loads(user.personal_info)
@@ -513,8 +512,7 @@ def autosave():
     }
     
     drafts_dir = 'drafts'
-    if not os.path.exists(drafts_dir):
-        os.makedirs(drafts_dir)
+    os.makedirs(drafts_dir, exist_ok=True)
     
     draft_file = os.path.join(drafts_dir, f'{draft_id}.json')
     with open(draft_file, 'w', encoding='utf-8') as f:
