@@ -424,33 +424,52 @@
             }
             
             // Auto-login from localStorage (only if not manually logged out)
-            const savedCredentials = localStorage.getItem('blogAppCredentials');
+            const encryptedCredentials = localStorage.getItem('blogAppCredentials');
             const isLoggedIn = {{ 'true' if session.user else 'false' }};
             const currentPath = window.location.pathname;
             const manualLogout = sessionStorage.getItem('manualLogout');
             
-            if (savedCredentials && !isLoggedIn && currentPath !== '/login' && !sessionStorage.getItem('autoLoginAttempted') && !manualLogout) {
+            if (encryptedCredentials && !isLoggedIn && currentPath !== '/login' && !sessionStorage.getItem('autoLoginAttempted') && !manualLogout) {
                 sessionStorage.setItem('autoLoginAttempted', 'true');
                 try {
-                    const { username, password } = JSON.parse(savedCredentials);
-                    fetch('/auto-login', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ username, password })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            window.location.reload();
-                        } else {
+                    // Load CryptoJS and decrypt credentials
+                    const script = document.createElement('script');
+                    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js';
+                    script.onload = function() {
+                        try {
+                            const bytes = CryptoJS.AES.decrypt(encryptedCredentials, 'blogApp_secure_key_2024');
+                            const decryptedString = bytes.toString(CryptoJS.enc.Utf8);
+                            const credentials = JSON.parse(decryptedString);
+                            
+                            if (credentials && credentials.username && credentials.password) {
+                                fetch('/auto-login', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ username: credentials.username, password: credentials.password })
+                                })
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.success) {
+                                        window.location.reload();
+                                    } else {
+                                        localStorage.removeItem('blogAppCredentials');
+                                        sessionStorage.removeItem('autoLoginAttempted');
+                                    }
+                                })
+                                .catch(() => {
+                                    localStorage.removeItem('blogAppCredentials');
+                                    sessionStorage.removeItem('autoLoginAttempted');
+                                });
+                            } else {
+                                localStorage.removeItem('blogAppCredentials');
+                                sessionStorage.removeItem('autoLoginAttempted');
+                            }
+                        } catch (e) {
                             localStorage.removeItem('blogAppCredentials');
                             sessionStorage.removeItem('autoLoginAttempted');
                         }
-                    })
-                    .catch(() => {
-                        localStorage.removeItem('blogAppCredentials');
-                        sessionStorage.removeItem('autoLoginAttempted');
-                    });
+                    };
+                    document.head.appendChild(script);
                 } catch (e) {
                     localStorage.removeItem('blogAppCredentials');
                     sessionStorage.removeItem('autoLoginAttempted');

@@ -1,62 +1,10 @@
 {
-  "Anonymous": {
-    "password": "password",
-    "personal_info": {}
-  },
   "ABC": {
-    "password": "password",
-    "personal_info": {
-      "profile_image": "uploads/9ea15080d1b144ffae3c2004e7e9979e_pxfuel.jpg"
-    }
-  },
-  "soumya": {
-    "password": "password",
-    "personal_info": {
-      "profile_image": "uploads/69e44cba81724ab5b0d66bdcdf056253_IMG_20231108_133117992_PORTRAIT.jpg",
-      "name": "",
-      "signature": "",
-      "address": "",
-      "phone": "",
-      "dob": "",
-      "email": "",
-      "bio": "",
-      "facebook": "",
-      "twitter": "",
-      "instagram": "",
-      "youtube": "https://youtube.com",
-      "github": "https://github.com",
-      "linkedin": ""
-    }
-  },
-  "Alic": {
-    "password": "password",
-    "personal_info": {}
-  },
-  "bob": {
-    "password": "password",
-    "personal_info": {}
-  },
-  "Bob": {
     "password": "password",
     "personal_info": {}
   },
   "Soumya": {
-    "password": "password",
-    "personal_info": {
-      "profile_image": "uploads/3703d513a2174df5a74841014aecbf61_IMG_20231108_133117992_PORTRAIT.jpg",
-      "name": "",
-      "signature": "",
-      "address": "",
-      "phone": "",
-      "dob": "",
-      "email": "",
-      "bio": "",
-      "facebook": "",
-      "twitter": "",
-      "instagram": "",
-      "youtube": "https://youtube.com",
-      "github": "https://github.com",
-      "linkedin": ""
-    }
+    "password": "$2b$12$1.UthUUlmCBW11mGx5QmteiAbwCxC6EMUhvHTIjE8/oc3o/xiD7QS",
+    "personal_info": {}
   }
 }

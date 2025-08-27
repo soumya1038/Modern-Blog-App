@@ -72,7 +72,18 @@
     </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 <script>
+    // Client-side encryption functions
+    function encryptData(data, key) {
+        const jsonString = JSON.stringify(data);
+        return CryptoJS.AES.encrypt(jsonString, key).toString();
+    }
+    
+    function getEncryptionKey() {
+        return 'blogApp_secure_key_2024';
+    }
+
 document.getElementById('registerForm').addEventListener('submit', function(e) {
     e.preventDefault();
     
@@ -104,10 +115,9 @@ document.getElementById('registerForm').addEventListener('submit', function(e) {
     .then(result => {
         if (result.success) {
             if (result.remember) {
-                localStorage.setItem('blogAppCredentials', JSON.stringify({
-                    username: username,
-                    password: password
-                }));
+                const credentials = { username: username, password: password };
+                const encryptedCredentials = encryptData(credentials, getEncryptionKey());
+                localStorage.setItem('blogAppCredentials', encryptedCredentials);
             }
             window.location.href = '/';
         } else {

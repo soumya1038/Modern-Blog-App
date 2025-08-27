@@ -6,6 +6,7 @@ from datetime import datetime
 import urllib.parse
 import gzip
 import base64
+import bcrypt
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'your-secret-key-here')
@@ -45,6 +46,12 @@ def get_all_blogs():
 USERS_FILE = 'users.json'
 NOTIFICATIONS_FILE = 'notifications.json'
 FOLLOWS_FILE = 'follows.json'
+
+def hash_password(password):
+    return bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
+
+def verify_password(password, hashed):
+    return bcrypt.checkpw(password.encode('utf-8'), hashed.encode('utf-8'))
 
 def load_users():
     if os.path.exists(USERS_FILE):
@@ -138,7 +145,7 @@ def register():
                 flash('Username already exists', 'error')
             else:
                 users[username] = {
-                    'password': password,
+                    'password': hash_password(password),
                     'personal_info': {}
                 }
                 save_users(users)
@@ -159,8 +166,24 @@ def login():
         
         users = load_users()
         user_data = users.get(username)
-        user_password = user_data['password'] if isinstance(user_data, dict) else user_data
-        if username in users and user_password == password:
+        if username in users:
+            user_password = user_data['password'] if isinstance(user_data, dict) else user_data
+            # Check if password is already hashed (starts with $2b$)
+            if user_password.startswith('$2b$'):
+                password_valid = verify_password(password, user_password)
+            else:
+                # Legacy plain text password - hash it and update
+                password_valid = user_password == password
+                if password_valid:
+                    if isinstance(user_data, dict):
+                        users[username]['password'] = hash_password(password)
+                    else:
+                        users[username] = {'password': hash_password(password), 'personal_info': {}}
+                    save_users(users)
+        else:
+            password_valid = False
+        
+        if username in users and password_valid:
             session['user'] = username
             flash('Logged in successfully!', 'success')
             return jsonify({'success': True, 'remember': bool(remember_me), 'username': username})
@@ -241,21 +264,33 @@ def profile():
             current_password = request.form['current_password']
             new_password = request.form['new_password']
             
-            if user_password != current_password:
+            # Verify current password
+            if user_password.startswith('$2b$'):
+                current_valid = verify_password(current_password, user_password)
+            else:
+                current_valid = user_password == current_password
+            
+            if not current_valid:
                 flash('Current password is incorrect', 'error')
             elif len(new_password) < 6:
                 flash('New password must be at least 6 characters', 'error')
             else:
                 if isinstance(user_data, str):
-                    users[session['user']] = {'password': new_password, 'personal_info': {}}
+                    users[session['user']] = {'password': hash_password(new_password), 'personal_info': {}}
                 else:
-                    users[session['user']]['password'] = new_password
+                    users[session['user']]['password'] = hash_password(new_password)
                 save_users(users)
                 flash('Password changed successfully!', 'success')
         
         elif action == 'delete_account':
             password = request.form['password']
-            if user_password != password:
+            # Verify password for account deletion
+            if user_password.startswith('$2b$'):
+                password_valid = verify_password(password, user_password)
+            else:
+                password_valid = user_password == password
+            
+            if not password_valid:
                 flash('Password is incorrect', 'error')
             else:
                 # Delete user account
@@ -300,8 +335,16 @@ def auto_login():
     
     users = load_users()
     user_data = users.get(username)
-    user_password = user_data['password'] if isinstance(user_data, dict) else user_data
-    if username in users and user_password == password:
+    if username in users:
+        user_password = user_data['password'] if isinstance(user_data, dict) else user_data
+        if user_password.startswith('$2b$'):
+            password_valid = verify_password(password, user_password)
+        else:
+            password_valid = user_password == password
+    else:
+        password_valid = False
+    
+    if username in users and password_valid:
         session['user'] = username
         return jsonify({'success': True})
     return jsonify({'success': False})

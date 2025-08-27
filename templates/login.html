@@ -36,7 +36,28 @@
     </p>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
 <script>
+    // Client-side encryption functions
+    function encryptData(data, key) {
+        const jsonString = JSON.stringify(data);
+        return CryptoJS.AES.encrypt(jsonString, key).toString();
+    }
+    
+    function decryptData(encryptedData, key) {
+        try {
+            const bytes = CryptoJS.AES.decrypt(encryptedData, key);
+            const decryptedString = bytes.toString(CryptoJS.enc.Utf8);
+            return JSON.parse(decryptedString);
+        } catch (e) {
+            return null;
+        }
+    }
+    
+    function getEncryptionKey() {
+        return 'blogApp_secure_key_2024';
+    }
+
 document.getElementById('loginForm').addEventListener('submit', function(e) {
     e.preventDefault();
     
@@ -61,10 +82,9 @@ document.getElementById('loginForm').addEventListener('submit', function(e) {
     .then(result => {
         if (result.success) {
             if (result.remember) {
-                localStorage.setItem('blogAppCredentials', JSON.stringify({
-                    username: username,
-                    password: password
-                }));
+                const credentials = { username: username, password: password };
+                const encryptedCredentials = encryptData(credentials, getEncryptionKey());
+                localStorage.setItem('blogAppCredentials', encryptedCredentials);
             }
             window.location.href = '/';
         } else {
@@ -78,13 +98,17 @@ document.getElementById('loginForm').addEventListener('submit', function(e) {
 
 // Pre-fill credentials if remembered
 document.addEventListener('DOMContentLoaded', function() {
-    const savedCredentials = localStorage.getItem('blogAppCredentials');
-    if (savedCredentials) {
+    const encryptedCredentials = localStorage.getItem('blogAppCredentials');
+    if (encryptedCredentials) {
         try {
-            const { username, password } = JSON.parse(savedCredentials);
-            document.getElementById('username').value = username;
-            document.getElementById('password').value = password;
-            document.getElementById('remember_me').checked = true;
+            const credentials = decryptData(encryptedCredentials, getEncryptionKey());
+            if (credentials && credentials.username && credentials.password) {
+                document.getElementById('username').value = credentials.username;
+                document.getElementById('password').value = credentials.password;
+                document.getElementById('remember_me').checked = true;
+            } else {
+                localStorage.removeItem('blogAppCredentials');
+            }
         } catch (e) {
             localStorage.removeItem('blogAppCredentials');
         }

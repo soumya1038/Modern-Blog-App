@@ -184,6 +184,29 @@ Start writing your masterpiece! ✨"></textarea>
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+<script>
+    // Client-side encryption functions
+    function encryptData(data, password) {
+        const jsonString = JSON.stringify(data);
+        return CryptoJS.AES.encrypt(jsonString, password).toString();
+    }
+    
+    function decryptData(encryptedData, password) {
+        try {
+            const bytes = CryptoJS.AES.decrypt(encryptedData, password);
+            const decryptedString = bytes.toString(CryptoJS.enc.Utf8);
+            return JSON.parse(decryptedString);
+        } catch (e) {
+            return null;
+        }
+    }
+    
+    function getUserPassword() {
+        // Use session user as encryption key (in production, use proper key derivation)
+        return '{{ session.user }}' + '_encryption_key';
+    }
+
 <script>
     const contentTextarea = document.getElementById('content');
     const titleInput = document.getElementById('title');
@@ -319,7 +342,12 @@ Start writing your masterpiece! ✨"></textarea>
             local_only: true
         };
         
-        let localBlogs = JSON.parse(localStorage.getItem('localBlogs') || '[]');
+        const encryptedData = localStorage.getItem('localBlogs');
+        let localBlogs = [];
+        if (encryptedData) {
+            const decrypted = decryptData(encryptedData, getUserPassword());
+            localBlogs = decrypted || [];
+        }
         const existingIndex = localBlogs.findIndex(blog => blog.id === blogData.id);
         
         if (existingIndex >= 0) {
@@ -328,13 +356,19 @@ Start writing your masterpiece! ✨"></textarea>
             localBlogs.push(blogData);
         }
         
-        localStorage.setItem('localBlogs', JSON.stringify(localBlogs));
+        const encryptedBlogs = encryptData(localBlogs, getUserPassword());
+        localStorage.setItem('localBlogs', encryptedBlogs);
         alert('Blog saved locally! You can sync it later when online.');
         updateSyncButton();
     }
     
     function syncLocalBlogs() {
-        const localBlogs = JSON.parse(localStorage.getItem('localBlogs') || '[]');
+        const encryptedData = localStorage.getItem('localBlogs');
+        let localBlogs = [];
+        if (encryptedData) {
+            const decrypted = decryptData(encryptedData, getUserPassword());
+            localBlogs = decrypted || [];
+        }
         const userBlogs = localBlogs.filter(blog => blog.author === '{{ session.user }}');
         
         if (userBlogs.length === 0) {
@@ -363,7 +397,8 @@ Start writing your masterpiece! ✨"></textarea>
                 if (data.success) {
                     alert(`Synced ${data.synced} blogs to server`);
                     const remainingBlogs = localBlogs.filter(blog => blog.author !== '{{ session.user }}');
-                    localStorage.setItem('localBlogs', JSON.stringify(remainingBlogs));
+                    const encryptedRemaining = encryptData(remainingBlogs, getUserPassword());
+                    localStorage.setItem('localBlogs', encryptedRemaining);
                     updateSyncButton();
                 } else {
                     alert('Sync failed: ' + data.message);
@@ -390,7 +425,12 @@ Start writing your masterpiece! ✨"></textarea>
     }
     
     function updateSyncButton() {
-        const localBlogs = JSON.parse(localStorage.getItem('localBlogs') || '[]');
+        const encryptedData = localStorage.getItem('localBlogs');
+        let localBlogs = [];
+        if (encryptedData) {
+            const decrypted = decryptData(encryptedData, getUserPassword());
+            localBlogs = decrypted || [];
+        }
         const userBlogs = localBlogs.filter(blog => blog.author === '{{ session.user }}');
         const syncBtn = document.querySelector('button[onclick="syncLocalBlogs()"]');
         if (userBlogs.length > 0) {
