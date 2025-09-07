@@ -80,7 +80,7 @@ export default function PostsOptimized() {
         return;
       }
 
-      const response = await fetch(`http://localhost:4000/v1/posts?page=${pageNum}&limit=5`, {
+      const response = await fetch(`/api/v1/posts?page=${pageNum}&limit=5`, {
         headers: { 'X-API-Key': apiKey }
       });
       
@@ -109,7 +109,7 @@ export default function PostsOptimized() {
     
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
+  }, [fetchPosts]);
 
   // Auto-load more when in view
   useEffect(() => {
@@ -129,7 +129,7 @@ export default function PostsOptimized() {
       const apiKey = localStorage.getItem('apiKey');
       if (!apiKey) return;
 
-      const response = await fetch(`http://localhost:4000/v1/posts/${postId}/like`, {
+      const response = await fetch(`/api/v1/posts/${postId}/like`, {
         method: 'POST',
         headers: { 'X-API-Key': apiKey }
       });

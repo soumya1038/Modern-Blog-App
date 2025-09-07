@@ -66,7 +66,7 @@ export default function Posts() {
 
   useEffect(() => {
     fetchPosts(1, true);
-  }, []);
+  }, [fetchPosts]);
 
   const loadMore = () => {
     if (hasMore && !loading) {

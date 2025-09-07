@@ -15,7 +15,6 @@
     "@emotion/styled": "^11.11.0",
     "@mui/icons-material": "^5.15.0",
     "@mui/material": "^5.15.0",
-    "critters": "^0.0.25",
     "next": "^14.0.0",
     "react": "^18.0.0",
     "react-dom": "^18.0.0",
