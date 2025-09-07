@@ -1,0 +1,51 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - "alert_rules.yml"
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Node Exporter
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['localhost:9100']
+
+  # API Application
+  - job_name: 'blog-api'
+    static_configs:
+      - targets: ['api:4000']
+    metrics_path: '/metrics'
+    scrape_interval: 30s
+
+  # MongoDB Exporter
+  - job_name: 'mongodb'
+    static_configs:
+      - targets: ['mongodb-exporter:9216']
+
+  # Redis Exporter
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+
+  # ECS Container Insights
+  - job_name: 'ecs-discovery'
+    ec2_sd_configs:
+      - region: us-east-1
+        port: 9090
+    relabel_configs:
+      - source_labels: [__meta_ec2_tag_Name]
+        target_label: instance
+      - source_labels: [__meta_ec2_instance_id]
+        target_label: instance_id

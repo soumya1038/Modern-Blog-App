@@ -1,11 +1,60 @@
 services:
   - type: web
-    name: modern-blog
-    env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    name: blog-app-api
+    env: node
+    buildCommand: cd apps/api && npm install && npm run build
+    startCommand: cd apps/api && npm start
     envVars:
-      - key: SECRET_KEY
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 4000
+      - key: MONGODB_URI
+        fromDatabase:
+          name: blog-mongodb
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: blog-redis
+          property: connectionString
+      - key: JWT_SECRET
         generateValue: true
-      - key: PYTHON_VERSION
-        value: 3.9.16
+      - key: JWT_REFRESH_SECRET
+        generateValue: true
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+    healthCheckPath: /health
+
+  - type: web
+    name: blog-app-web
+    env: static
+    buildCommand: cd apps/web && npm install && npm run build
+    staticPublishPath: apps/web/.next
+    routes:
+      - type: rewrite
+        source: /api/*
+        destination: https://blog-app-api.onrender.com/*
+      - type: rewrite
+        source: /v1/*
+        destination: https://blog-app-api.onrender.com/v1/*
+
+  - type: web
+    name: blog-app-admin
+    env: static
+    buildCommand: cd apps/admin && npm install && npm run build
+    staticPublishPath: apps/admin/.next
+
+  - type: redis
+    name: blog-redis
+    plan: starter
+    maxmemoryPolicy: allkeys-lru
+
+databases:
+  - name: blog-mongodb
+    databaseName: blog
+    user: bloguser

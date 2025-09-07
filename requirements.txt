@@ -1,4 +1,0 @@
-Flask==2.3.3
-Markdown==3.5.1
-gunicorn==21.2.0
-bcrypt==4.0.1

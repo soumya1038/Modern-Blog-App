@@ -1,0 +1,138 @@
+{
+  "info": {
+    "name": "Blog App API",
+    "description": "Complete API collection for the Blog App platform",
+    "version": "1.0.0",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "key",
+        "value": "X-API-Key",
+        "type": "string"
+      },
+      {
+        "key": "value",
+        "value": "{{API_KEY}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "BASE_URL",
+      "value": "http://localhost:4000",
+      "type": "string"
+    },
+    {
+      "key": "API_KEY",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/v1/auth/register",
+              "host": ["{{BASE_URL}}"],
+              "path": ["v1", "auth", "register"]
+            }
+          }
+        },
+        {
+          "name": "Create API Key",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"My API Key\",\n  \"scopes\": [\"read\", \"write\"]\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/v1/auth/api-keys",
+              "host": ["{{BASE_URL}}"],
+              "path": ["v1", "auth", "api-keys"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Posts",
+      "item": [
+        {
+          "name": "Get Posts",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/v1/posts?page=1&limit=10",
+              "host": ["{{BASE_URL}}"],
+              "path": ["v1", "posts"]
+            }
+          }
+        },
+        {
+          "name": "Create Post",
+          "request": {
+            "method": "POST",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"My First Post\",\n  \"content\": \"Content here\",\n  \"status\": \"published\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/v1/posts",
+              "host": ["{{BASE_URL}}"],
+              "path": ["v1", "posts"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "User (GDPR)",
+      "item": [
+        {
+          "name": "Export User Data",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{BASE_URL}}/v1/user/export",
+              "host": ["{{BASE_URL}}"],
+              "path": ["v1", "user", "export"]
+            }
+          }
+        },
+        {
+          "name": "Delete Account",
+          "request": {
+            "method": "DELETE",
+            "header": [{"key": "Content-Type", "value": "application/json"}],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"confirmEmail\": \"user@example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{BASE_URL}}/v1/user/account",
+              "host": ["{{BASE_URL}}"],
+              "path": ["v1", "user", "account"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

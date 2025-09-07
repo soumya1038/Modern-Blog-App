@@ -1,0 +1,27 @@
+# Project Configuration
+project_name = "blog-app"
+aws_region   = "us-east-1"
+
+# ECR Repository (create this first)
+ecr_repository_url = "123456789012.dkr.ecr.us-east-1.amazonaws.com/blog-app"
+
+# MongoDB Atlas Configuration
+mongodb_atlas_public_key  = "your-atlas-public-key"
+mongodb_atlas_private_key = "your-atlas-private-key"
+mongodb_atlas_org_id      = "your-atlas-org-id"
+mongodb_username          = "blogapp"
+mongodb_password          = "secure-password-123"
+mongodb_database_name     = "blog"
+
+# Application Secrets
+jwt_secret = "your-jwt-secret-at-least-32-characters-long"
+
+# Cloudinary Configuration
+cloudinary_cloud_name = "your-cloudinary-cloud-name"
+cloudinary_api_key    = "your-cloudinary-api-key"
+cloudinary_api_secret = "your-cloudinary-api-secret"
+
+# Monitoring
+grafana_admin_password = "secure-grafana-password"
+sentry_dsn            = "https://your-sentry-dsn@sentry.io/project-id"
+uptime_robot_api_key  = "your-uptime-robot-api-key"

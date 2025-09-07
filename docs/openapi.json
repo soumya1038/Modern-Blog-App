@@ -1,0 +1,290 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Blog App API",
+    "description": "A modern blog platform API with GDPR compliance",
+    "version": "1.0.0",
+    "contact": {
+      "name": "Blog App Support",
+      "email": "support@blogapp.com"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:4000",
+      "description": "Development server"
+    },
+    {
+      "url": "https://api.blogapp.com",
+      "description": "Production server"
+    }
+  ],
+  "security": [
+    {
+      "ApiKeyAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "ApiKeyAuth": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key"
+      }
+    },
+    "schemas": {
+      "Post": {
+        "type": "object",
+        "properties": {
+          "_id": {"type": "string"},
+          "title": {"type": "string"},
+          "content": {"type": "string"},
+          "excerpt": {"type": "string"},
+          "slug": {"type": "string"},
+          "status": {"type": "string", "enum": ["draft", "published"]},
+          "likes": {"type": "integer"},
+          "authorId": {"$ref": "#/components/schemas/User"},
+          "readTime": {
+            "type": "object",
+            "properties": {
+              "text": {"type": "string"},
+              "minutes": {"type": "integer"},
+              "words": {"type": "integer"}
+            }
+          },
+          "createdAt": {"type": "string", "format": "date-time"},
+          "updatedAt": {"type": "string", "format": "date-time"}
+        }
+      },
+      "User": {
+        "type": "object",
+        "properties": {
+          "_id": {"type": "string"},
+          "email": {"type": "string", "format": "email"},
+          "role": {"type": "string", "enum": ["user", "admin"]},
+          "isEmailVerified": {"type": "boolean"},
+          "createdAt": {"type": "string", "format": "date-time"}
+        }
+      },
+      "Comment": {
+        "type": "object",
+        "properties": {
+          "_id": {"type": "string"},
+          "content": {"type": "string"},
+          "postId": {"type": "string"},
+          "authorId": {"$ref": "#/components/schemas/User"},
+          "status": {"type": "string", "enum": ["pending", "approved", "spam"]},
+          "createdAt": {"type": "string", "format": "date-time"}
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {"type": "string"}
+        }
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "summary": "Health check",
+        "responses": {
+          "200": {
+            "description": "Service is healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {"type": "string"},
+                    "timestamp": {"type": "string"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/auth/register": {
+      "post": {
+        "summary": "Register new user",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {"type": "string", "format": "email"},
+                  "password": {"type": "string", "minLength": 8}
+                },
+                "required": ["email", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "User registered successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "accessToken": {"type": "string"},
+                    "user": {"$ref": "#/components/schemas/User"}
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad request",
+            "content": {
+              "application/json": {
+                "schema": {"$ref": "#/components/schemas/Error"}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/posts": {
+      "get": {
+        "summary": "Get posts with pagination",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {"type": "integer", "default": 1}
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "schema": {"type": "integer", "default": 10}
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Posts retrieved successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "posts": {
+                      "type": "array",
+                      "items": {"$ref": "#/components/schemas/Post"}
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "page": {"type": "integer"},
+                        "limit": {"type": "integer"},
+                        "total": {"type": "integer"},
+                        "hasMore": {"type": "boolean"}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Create new post",
+        "security": [{"ApiKeyAuth": []}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {"type": "string"},
+                  "content": {"type": "string"},
+                  "excerpt": {"type": "string"},
+                  "status": {"type": "string", "enum": ["draft", "published"]}
+                },
+                "required": ["title", "content"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Post created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "post": {"$ref": "#/components/schemas/Post"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/user/export": {
+      "get": {
+        "summary": "Export user data (GDPR)",
+        "security": [{"ApiKeyAuth": []}],
+        "responses": {
+          "200": {
+            "description": "User data exported as ZIP file",
+            "content": {
+              "application/zip": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/user/account": {
+      "delete": {
+        "summary": "Delete user account (GDPR)",
+        "security": [{"ApiKeyAuth": []}],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "confirmEmail": {"type": "string", "format": "email"}
+                },
+                "required": ["confirmEmail"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Account deletion scheduled",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "message": {"type": "string"},
+                    "deletionDate": {"type": "string", "format": "date-time"}
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

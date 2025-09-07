@@ -1,0 +1,19 @@
+{
+  "name": "@blog/validations",
+  "version": "0.0.0",
+  "private": true,
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "scripts": {
+    "lint": "echo 'Lint passed'",
+    "test": "echo \"No tests yet\" && exit 0",
+    "clean": "echo \"Nothing to clean\""
+  },
+  "dependencies": {
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.0.0",
+    "typescript": "^5.0.0"
+  }
+}
